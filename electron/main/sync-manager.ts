@@ -3,6 +3,7 @@ import { appendActivity } from './activity-log'
 import { pingDjango, syncAccounting, syncInventory } from './http-client'
 import { notify } from './notifications'
 import { getSettings } from './settings'
+import { uploadTsmGroupsToDjango } from './tsm-write-executor'
 import { validateLuaFile, type WatchedKind } from './watcher'
 
 export type SyncKind = WatchedKind
@@ -185,6 +186,18 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
       result.detail ?? result.filename ?? basenameSafe(filePath)
     )
   }
+
+  // Después de un inventory sync exitoso, subir grupos TSM a Django
+  if (kind === 'inventory') {
+    try {
+      const { readFileSync } = await import('node:fs')
+      const luaContent = readFileSync(filePath, 'utf-8')
+      void uploadTsmGroupsToDjango(luaContent)
+    } catch {
+      // no-op, non-critical
+    }
+  }
+
   emitStatus()
 
   return {

@@ -299,3 +299,117 @@ export async function executeTsmWrite(
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NUEVAS FUNCIONES: arquitectura multi-usuario (cola de escrituras pendientes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TsmGroup {
+  value: string
+  label: string
+  is_subgroup: boolean
+}
+
+/**
+ * Sube la lista de grupos TSM del usuario a Django.
+ * Se llama después de cada sync del TSM .lua.
+ */
+export async function syncTsmGroups(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  groups: TsmGroup[]
+): Promise<{ ok: boolean; error?: string }> {
+  let url: string
+  try {
+    url = new URL('/api/companion/sync-tsm-groups/', settings.djangoUrl).toString()
+  } catch {
+    return { ok: false, error: `Django URL inválida: "${settings.djangoUrl}"` }
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: companionHeaders(settings.companionToken),
+      body: JSON.stringify({ groups })
+    })
+    const body = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null
+    if (!response.ok || !body?.success) {
+      return { ok: false, error: body?.error ?? `HTTP ${response.status}` }
+    }
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export interface PendingWrite {
+  writeId: number
+  assignments: Array<{ group: string; item_ids: string[]; clear_first?: boolean }>
+  createdAt: string
+}
+
+/**
+ * Polling: pregunta a Django si hay un Write TSM pendiente para este usuario.
+ * Devuelve null si no hay nada, o el job si hay uno.
+ */
+export async function pollPendingWrite(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>
+): Promise<PendingWrite | null> {
+  let url: string
+  try {
+    url = new URL('/api/companion/pending-write/', settings.djangoUrl).toString()
+  } catch {
+    return null
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: companionHeaders(settings.companionToken)
+    })
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      has_pending?: boolean
+      write_id?: number
+      assignments?: PendingWrite['assignments']
+      created_at?: string
+    } | null
+
+    if (!response.ok || !body?.success || !body.has_pending) return null
+
+    return {
+      writeId: body.write_id!,
+      assignments: body.assignments ?? [],
+      createdAt: body.created_at ?? new Date().toISOString()
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Reporta el resultado de un Write TSM ejecutado localmente a Django.
+ */
+export async function completePendingWrite(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  writeId: number,
+  ok: boolean,
+  stats?: Record<string, number>,
+  error?: string
+): Promise<void> {
+  let url: string
+  try {
+    url = new URL('/api/companion/complete-write/', settings.djangoUrl).toString()
+  } catch {
+    return
+  }
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: companionHeaders(settings.companionToken),
+      body: JSON.stringify({ write_id: writeId, success: ok, stats: stats ?? {}, error: error ?? '' })
+    })
+  } catch {
+    // fire and forget
+  }
+}
