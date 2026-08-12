@@ -24,4 +24,4 @@ export const IpcChannel = {
   OpenExternal: 'shell:open-external'
 } as const
 
-export type AppTab = 'dashboard' | 'activity-log' | 'controls' | 'backups' | 'settings'
+export type AppTab = 'dashboard' | 'activity-log' | 'backups' | 'settings'
