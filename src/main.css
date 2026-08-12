@@ -446,3 +446,59 @@ body {
 .switch input:checked + .switch__track::before {
   transform: translateX(18px);
 }
+
+.test-result {
+  font-size: 12px;
+  align-self: center;
+}
+.test-result--ok {
+  color: var(--color-success);
+}
+.test-result--error {
+  color: var(--color-danger);
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 2px var(--spacing-sm);
+  font-size: 12px;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.activity-item time {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-item__message {
+  font-weight: 500;
+}
+
+.activity-item__detail {
+  grid-column: 2;
+  color: var(--color-text-muted);
+}
+
+.activity-item--success .activity-item__message {
+  color: var(--color-success);
+}
+.activity-item--warn .activity-item__message {
+  color: var(--color-warning);
+}
+.activity-item--error .activity-item__message {
+  color: var(--color-danger);
+}

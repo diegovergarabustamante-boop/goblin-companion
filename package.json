@@ -25,6 +25,7 @@
     "vite": "^7.3.6"
   },
   "dependencies": {
+    "chokidar": "^5.0.0",
     "electron-store": "^11.0.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

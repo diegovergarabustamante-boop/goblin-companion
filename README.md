@@ -4,7 +4,7 @@ Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auctio
 
 Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
 
-## Estado actual (Etapa 0 — scaffold)
+## Estado actual (Etapa 3a — watcher + sync de lectura)
 
 Lo que ya funciona:
 
@@ -14,16 +14,16 @@ Lo que ya funciona:
 - 4 tabs: Dashboard, Activity Log, Controls, Settings (+ tab "P&L — Coming soon" deshabilitado).
 - Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
 - IPC tipado entre proceso principal, preload y renderer (`shared/ipc.ts`, `shared/settings.ts`).
-- **Auth companion contra Django** (Etapa 2): `GET /api/companion/ping/` protegido por `X-Companion-Token` (ver `require_companion_token` en el repo `Auction-house-Profit`), cliente HTTP (`electron/main/http-client.ts`) y botón "Probar conexión" en Settings.
+- **Auth companion contra Django** (Etapa 2): `GET /api/companion/ping/` + botón "Probar conexión".
+- **Watcher + sync** (Etapa 3a): chokidar sobre `TradeSkillMaster.lua` / `TradeSkillMaster_Accounting.lua`, cooldown, activity log JSONL, sync manual desde tray/Controls/Dashboard. Llama a `POST /api/companion/read-saved-variable/` (todavía **no** persiste a la DB).
 
 Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
 
-- File watcher real (chokidar) y sync automático/manual contra Django.
+- Persistencia real a DB (Etapa 3b: inventario/accounting en Django).
+- Cola de reintentos cuando Django está caído (Etapa 4).
 - Local server `127.0.0.1:8765` (`/status`, `/sync`) y el indicador "Opción 3" en la web.
 - Write to TSM Groups + backups rotatorios reales.
 - Auto-arranque, notificaciones nativas, installer `.exe`.
-
-Todos los controles de esas features están en la UI pero deshabilitados, para que la forma final de la interfaz ya esté fijada.
 
 ## Requisitos
 

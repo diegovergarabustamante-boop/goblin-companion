@@ -3,12 +3,24 @@ import { join } from 'node:path'
 import { BrowserWindow, app, ipcMain, shell } from 'electron'
 
 import { IpcChannel, type AppTab } from '../../shared/ipc'
-import type { CompanionSettings, CompanionStatusSnapshot } from '../../shared/settings'
+import type { CompanionSettings } from '../../shared/settings'
+import {
+  appendActivity,
+  getActivityLog,
+  hydrateActivityLogFromDisk,
+  onActivity
+} from './activity-log'
 import { isQuittingApp, markQuitting } from './app-state'
 import { pingDjango } from './http-client'
+import { loadDotEnv } from './load-env'
+import { resolveLuaPath } from './paths'
 import { getSettings, updateSettings } from './settings'
+import { getSyncSnapshot, markDjangoReachable, onSyncStatusChange, syncFile } from './sync-manager'
 import { createTray, setTrayStatus } from './tray'
+import { restartWatcher, stopWatcher } from './watcher'
 import { getWindowBounds, saveWindowBounds } from './window-state'
+
+loadDotEnv()
 
 let mainWindow: BrowserWindow | null = null
 
@@ -34,7 +46,6 @@ function createMainWindow(): BrowserWindow {
   window.on('resized', () => saveWindowBounds(window.getBounds()))
   window.on('moved', () => saveWindowBounds(window.getBounds()))
 
-  // Plan sección 8: cerrar [x] minimiza al tray, no cierra la app.
   window.on('close', (event) => {
     if (isQuittingApp()) return
     event.preventDefault()
@@ -59,45 +70,60 @@ function showWindowOnTab(tab: AppTab): void {
   mainWindow.webContents.send(IpcChannel.NavigateTo, tab)
 }
 
-function computeStatus(): CompanionStatusSnapshot {
-  // Watcher/sync-manager/connection-monitor llegan en Etapa 3-4 del plan.
-  // Por ahora el único estado real disponible es el toggle de auto-sync.
-  const { autoSyncEnabled } = getSettings()
-  return {
-    trayStatus: autoSyncEnabled ? 'green' : 'gray',
-    autoSyncEnabled,
-    djangoReachable: null,
-    lastSyncAt: null
-  }
-}
-
 function broadcastStatus(): void {
-  const status = computeStatus()
+  const status = getSyncSnapshot()
   setTrayStatus(status.trayStatus)
   mainWindow?.webContents.send(IpcChannel.StatusChanged, status)
+}
+
+function wireWatcher(): void {
+  restartWatcher((event) => {
+    void syncFile(event.kind, event.filePath, 'auto')
+  })
+}
+
+async function runManualSync(kind: 'inventory' | 'accounting'): Promise<{ ok: boolean; error?: string }> {
+  const filePath = resolveLuaPath(kind)
+  if (!filePath) {
+    const error = 'Configura la carpeta SavedVariables en Settings'
+    appendActivity('error', error)
+    return { ok: false, error }
+  }
+  const result = await syncFile(kind, filePath, 'manual')
+  return { ok: result.ok, error: result.error }
 }
 
 function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.GetSettings, () => getSettings())
 
   ipcMain.handle(IpcChannel.UpdateSettings, (_event, patch: Parameters<typeof updateSettings>[0]) => {
+    const prev = getSettings()
     const next = updateSettings(patch)
+    const watcherRelevant =
+      prev.autoSyncEnabled !== next.autoSyncEnabled ||
+      prev.wowSavedVariablesPath !== next.wowSavedVariablesPath
+    if (watcherRelevant) wireWatcher()
     broadcastStatus()
     return next
   })
 
-  ipcMain.handle(IpcChannel.GetStatus, computeStatus)
+  ipcMain.handle(IpcChannel.GetStatus, () => getSyncSnapshot())
 
   ipcMain.on(IpcChannel.WindowMinimize, () => mainWindow?.minimize())
   ipcMain.on(IpcChannel.WindowClose, () => mainWindow?.hide())
 
   ipcMain.handle(IpcChannel.OpenExternal, (_event, url: string) => shell.openExternal(url))
 
-  // Acepta un override sin persistir para poder "Probar conexión" antes de
-  // guardar (p.ej. mientras el usuario todavía está editando el formulario).
-  ipcMain.handle(IpcChannel.TestConnection, (_event, override?: Partial<CompanionSettings>) =>
-    pingDjango({ ...getSettings(), ...override })
-  )
+  ipcMain.handle(IpcChannel.TestConnection, async (_event, override?: Partial<CompanionSettings>) => {
+    const result = await pingDjango({ ...getSettings(), ...override })
+    markDjangoReachable(result.ok)
+    broadcastStatus()
+    return result
+  })
+
+  ipcMain.handle(IpcChannel.SyncInventory, () => runManualSync('inventory'))
+  ipcMain.handle(IpcChannel.SyncAccounting, () => runManualSync('accounting'))
+  ipcMain.handle(IpcChannel.GetActivityLog, () => getActivityLog())
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -107,21 +133,33 @@ if (!gotLock) {
   app.on('second-instance', () => showWindowOnTab('dashboard'))
 
   void app.whenReady().then(() => {
+    hydrateActivityLogFromDisk()
     registerIpcHandlers()
     mainWindow = createMainWindow()
+
+    onSyncStatusChange(() => broadcastStatus())
+    onActivity((event) => {
+      mainWindow?.webContents.send(IpcChannel.ActivityAppended, event)
+    })
 
     createTray({
       getWindow: () => mainWindow,
       showWindowOnTab,
-      getDjangoUrl: () => getSettings().djangoUrl
+      getDjangoUrl: () => getSettings().djangoUrl,
+      syncInventory: () => void runManualSync('inventory'),
+      syncAccounting: () => void runManualSync('accounting')
     })
 
-    setTrayStatus(getSettings().autoSyncEnabled ? 'green' : 'gray')
+    wireWatcher()
+    broadcastStatus()
+    appendActivity('info', 'Goblin Companion listo')
+  })
+
+  app.on('before-quit', () => {
+    stopWatcher()
   })
 
   app.on('window-all-closed', () => {
-    // La ventana se oculta (no se destruye) al cerrar, así que esto solo
-    // dispara en plataformas donde el usuario cierra desde fuera del tray.
     if (process.platform !== 'darwin') {
       markQuitting()
       app.quit()

@@ -13,6 +13,14 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
     await window.goblin.updateSettings({ autoSyncEnabled: !autoSyncEnabled })
   }
 
+  async function forceSync(): Promise<void> {
+    await window.goblin.syncInventory()
+    await window.goblin.syncAccounting()
+  }
+
+  const djangoLabel =
+    status?.djangoReachable === null ? 'Sin verificar' : status?.djangoReachable ? 'OK' : 'No responde'
+
   return (
     <div className="page">
       <div className="glass-panel dashboard-grid">
@@ -27,28 +35,28 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
 
         <div className="dashboard-card">
           <span className="dashboard-card__label">Último sync</span>
-          <span className="dashboard-card__value">{status?.lastSyncAt ?? '—'}</span>
-        </div>
-
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Estado Django</span>
           <span className="dashboard-card__value">
-            {status?.djangoReachable === null ? 'Sin verificar' : status?.djangoReachable ? 'OK' : 'No responde'}
+            {status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleTimeString() : '—'}
           </span>
         </div>
 
         <div className="dashboard-card">
-          <span className="dashboard-card__label">Items / Chars</span>
-          <span className="dashboard-card__value">—</span>
+          <span className="dashboard-card__label">Estado Django</span>
+          <span className="dashboard-card__value">{djangoLabel}</span>
+        </div>
+
+        <div className="dashboard-card">
+          <span className="dashboard-card__label">Tray</span>
+          <span className="dashboard-card__value">{status?.trayStatus ?? 'gray'}</span>
         </div>
       </div>
 
-      <button type="button" className="btn btn--primary" disabled title="Disponible cuando el watcher esté activo (Etapa 3)">
+      <button type="button" className="btn btn--primary" onClick={() => void forceSync()}>
         Forzar sync ahora
       </button>
       <p className="page__note">
-        El watcher de archivos y el sync real contra Django todavía no están conectados: esto es el shell visual de
-        la Etapa 0 del plan.
+        Etapa 3a: el sync lee el `.lua` vía Django (`/api/companion/read-saved-variable/`). La persistencia a DB
+        (inventario/accounting reales) llega en el siguiente incremento.
       </p>
     </div>
   )

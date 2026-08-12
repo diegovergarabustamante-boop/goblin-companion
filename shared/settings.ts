@@ -41,3 +41,13 @@ export interface DjangoPingResult {
   user?: string | null
   error?: string
 }
+
+export type ActivityLevel = 'info' | 'success' | 'warn' | 'error'
+
+export interface ActivityEvent {
+  id: string
+  at: string
+  level: ActivityLevel
+  message: string
+  detail?: string
+}

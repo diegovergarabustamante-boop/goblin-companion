@@ -15,6 +15,8 @@ interface CreateTrayOptions {
   getWindow: () => BrowserWindow | null
   showWindowOnTab: (tab: 'dashboard' | 'activity-log' | 'controls' | 'settings') => void
   getDjangoUrl: () => string
+  syncInventory: () => void
+  syncAccounting: () => void
 }
 
 let tray: Tray | null = null
@@ -36,11 +38,9 @@ export function setTrayStatus(status: TrayStatus): void {
 }
 
 function buildMenu(options: CreateTrayOptions): Menu {
-  // Sync/Write todavía no existen (llegan en Etapa 3 y 6 del plan); se
-  // muestran para fijar la forma del menú pero deshabilitados.
   return Menu.buildFromTemplate([
-    { label: 'Sync inventario', enabled: false },
-    { label: 'Sync accounting', enabled: false },
+    { label: 'Sync inventario', click: () => options.syncInventory() },
+    { label: 'Sync accounting', click: () => options.syncAccounting() },
     { label: 'Write TSM Groups…', enabled: false },
     { type: 'separator' },
     {

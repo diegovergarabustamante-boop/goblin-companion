@@ -2,23 +2,34 @@ import { useEffect, useState, type JSX } from 'react'
 
 function Controls(): JSX.Element {
   const [djangoUrl, setDjangoUrl] = useState('')
+  const [busy, setBusy] = useState<'inventory' | 'accounting' | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     window.goblin.getSettings().then((settings) => setDjangoUrl(settings.djangoUrl))
   }, [])
+
+  async function run(kind: 'inventory' | 'accounting'): Promise<void> {
+    setBusy(kind)
+    setMessage(null)
+    const result = kind === 'inventory' ? await window.goblin.syncInventory() : await window.goblin.syncAccounting()
+    setBusy(null)
+    setMessage(result.ok ? `✓ Sync ${kind} OK` : `✗ ${result.error ?? 'falló'}`)
+  }
 
   return (
     <div className="page">
       <section className="glass-panel">
         <h2>Sync manual</h2>
         <div className="button-row">
-          <button type="button" className="btn" disabled title="Etapa 3">
-            Sync inventario
+          <button type="button" className="btn" disabled={busy !== null} onClick={() => void run('inventory')}>
+            {busy === 'inventory' ? 'Sincronizando…' : 'Sync inventario'}
           </button>
-          <button type="button" className="btn" disabled title="Etapa 3">
-            Sync accounting
+          <button type="button" className="btn" disabled={busy !== null} onClick={() => void run('accounting')}>
+            {busy === 'accounting' ? 'Sincronizando…' : 'Sync accounting'}
           </button>
         </div>
+        {message ? <p className="page__note">{message}</p> : null}
       </section>
 
       <section className="glass-panel">
