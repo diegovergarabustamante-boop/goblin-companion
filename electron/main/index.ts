@@ -206,16 +206,16 @@ function registerIpcHandlers(): void {
     openActivityLogFolder()
   })
 
-  ipcMain.handle(IpcChannel.ListBackups, () => listBackups())
-  ipcMain.handle(IpcChannel.CreateBackup, () => {
+  ipcMain.handle(IpcChannel.ListBackups, (_event, kind?: 'write' | 'snapshot') => listBackups(kind))
+  ipcMain.handle(IpcChannel.CreateBackup, (_event, kind: 'write' | 'snapshot' = 'snapshot') => {
     try {
-      const backup = createRotatingBackup()
+      const backup = createRotatingBackup(kind)
       return { ok: true, backup }
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
-  ipcMain.handle(IpcChannel.RestoreBackup, (_event, backupId: string) => restoreBackup(backupId))
+  ipcMain.handle(IpcChannel.RestoreBackup, (_event, backupId: string, kind?: 'write' | 'snapshot') => restoreBackup(backupId, kind))
   ipcMain.handle(IpcChannel.OpenBackupsFolder, () => {
     openBackupsFolder()
   })

@@ -3,6 +3,7 @@ import { useEffect, useState, type JSX } from 'react'
 import type { AppTab } from '../shared/ipc'
 import type { CompanionSettings, CompanionStatusSnapshot } from '../shared/settings'
 import ActivityLog from './pages/ActivityLog'
+import Backups from './pages/Backups'
 import Controls from './pages/Controls'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
@@ -16,6 +17,7 @@ const TABS: Array<{ id: TabId; label: string; disabled?: boolean }> = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'activity-log', label: 'Activity Log' },
   { id: 'controls', label: 'Controls' },
+  { id: 'backups', label: 'Backups' },
   { id: 'settings', label: 'Settings' },
   { id: 'pnl', label: 'P&L · Coming soon', disabled: true }
 ]
@@ -62,6 +64,7 @@ function App(): JSX.Element {
         {activeTab === 'dashboard' && <Dashboard status={status} />}
         {activeTab === 'activity-log' && <ActivityLog />}
         {activeTab === 'controls' && <Controls />}
+        {activeTab === 'backups' && <Backups />}
         {activeTab === 'settings' && <Settings />}
       </main>
       <footer className="status-bar">

@@ -17,8 +17,11 @@ export interface SyncActionResult {
 
 export interface BackupInfoDto {
   id: string
+  kind: 'write' | 'snapshot'
   fileName: string
   filePath: string
+  hasMain: boolean
+  hasAppHelper: boolean
   createdAt: string
   sizeBytes: number
 }
@@ -59,13 +62,13 @@ const goblinApi = {
 
   openActivityLogFolder: (): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenActivityLogFolder),
 
-  listBackups: (): Promise<BackupInfoDto[]> => ipcRenderer.invoke(IpcChannel.ListBackups),
+  listBackups: (kind?: 'write' | 'snapshot'): Promise<BackupInfoDto[]> => ipcRenderer.invoke(IpcChannel.ListBackups, kind),
 
-  createBackup: (): Promise<{ ok: boolean; backup?: BackupInfoDto; error?: string }> =>
-    ipcRenderer.invoke(IpcChannel.CreateBackup),
+  createBackup: (kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; backup?: BackupInfoDto; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.CreateBackup, kind),
 
-  restoreBackup: (backupId: string): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke(IpcChannel.RestoreBackup, backupId),
+  restoreBackup: (backupId: string, kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.RestoreBackup, backupId, kind),
 
   openBackupsFolder: (): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenBackupsFolder),
 

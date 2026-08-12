@@ -63,22 +63,22 @@ function Controls(): JSX.Element {
 
   async function handleCreateBackup(): Promise<void> {
     setBusy('backup')
-    const result = await window.goblin.createBackup()
+    const result = await window.goblin.createBackup('snapshot')
     setBusy(null)
     await refreshBackups()
-    setMessage(result.ok ? `✓ Backup ${result.backup?.fileName}` : `✗ ${result.error}`)
+    setMessage(result.ok ? `✓ Snapshot ${result.backup?.fileName}` : `✗ ${result.error}`)
   }
 
   async function handleRestore(id: string, fileName: string): Promise<void> {
     const confirmed = window.confirm(
-      `¿Restaurar ${fileName} sobre TradeSkillMaster.lua?\n\nSe backup-eará el estado actual antes. WoW debe estar cerrado.`
+      `¿Restaurar ${fileName} sobre TradeSkillMaster.lua?\n\nSe creará un snapshot de seguridad antes de sobreescribir. WoW debe estar cerrado.`
     )
     if (!confirmed) return
     setBusy('backup')
     const result = await window.goblin.restoreBackup(id)
     setBusy(null)
     await refreshBackups()
-    setMessage(result.ok ? `✓ Restaurado ${fileName}` : `✗ ${result.error}`)
+    setMessage(result.ok ? `✓ Restaurado a ${result.restoredTo}` : `✗ ${result.error}`)
   }
 
   return (
