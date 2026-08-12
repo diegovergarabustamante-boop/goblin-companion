@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 
 import { appendActivity } from './activity-log'
+import { createRotatingBackup, listBackups } from './backup-manager'
 import { resolveLuaPath } from './paths'
 import { getSettings } from './settings'
 import { getSyncSnapshot, syncFile } from './sync-manager'
@@ -46,7 +47,8 @@ function statusPayload(): Record<string, unknown> {
     last_inventory_sync: snap.lastInventorySyncAt,
     last_accounting_sync: snap.lastAccountingSyncAt,
     django_url: settings.djangoUrl,
-    saved_variables_configured: Boolean(settings.wowSavedVariablesPath)
+    saved_variables_configured: Boolean(settings.wowSavedVariablesPath),
+    backup_count: listBackups().length
   }
 }
 
@@ -113,8 +115,33 @@ export function startLocalServer(port = getSettings().localServerPort): void {
       return
     }
 
+    if (method === 'POST' && url.pathname === '/backup') {
+      try {
+        const backup = createRotatingBackup()
+        sendJson(res, 200, {
+          ok: true,
+          backup: {
+            id: backup.id,
+            fileName: backup.fileName,
+            createdAt: backup.createdAt,
+            sizeBytes: backup.sizeBytes
+          }
+        })
+      } catch (error) {
+        sendJson(res, 500, {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+      return
+    }
+
     if (method === 'GET' && url.pathname === '/') {
-      sendJson(res, 200, { ok: true, service: 'goblin-companion', endpoints: ['/status', '/sync'] })
+      sendJson(res, 200, {
+        ok: true,
+        service: 'goblin-companion',
+        endpoints: ['/status', '/sync', '/backup']
+      })
       return
     }
 
@@ -126,7 +153,7 @@ export function startLocalServer(port = getSettings().localServerPort): void {
   })
 
   server.listen(port, '127.0.0.1', () => {
-    appendActivity('success', `Local server en 127.0.0.1:${port}`, '/status · /sync')
+    appendActivity('success', `Local server en 127.0.0.1:${port}`, '/status · /sync · /backup')
   })
 }
 

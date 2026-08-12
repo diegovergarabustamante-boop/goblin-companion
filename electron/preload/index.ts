@@ -15,6 +15,29 @@ export interface SyncActionResult {
   error?: string
 }
 
+export interface BackupInfoDto {
+  id: string
+  fileName: string
+  filePath: string
+  createdAt: string
+  sizeBytes: number
+}
+
+export interface TsmWritePreviewDto {
+  ok: boolean
+  preview?: Array<{ group: string; details: string; total_items: number }>
+  assignments?: Array<{ group: string; item_ids: string[]; clear_first?: boolean }>
+  itemCount?: number
+  totalItemsAffected?: number
+  error?: string
+}
+
+export interface TsmWriteResultDto {
+  ok: boolean
+  stats?: Record<string, number>
+  error?: string
+}
+
 const goblinApi = {
   getSettings: (): Promise<CompanionSettings> => ipcRenderer.invoke(IpcChannel.GetSettings),
 
@@ -31,6 +54,22 @@ const goblinApi = {
   syncAccounting: (): Promise<SyncActionResult> => ipcRenderer.invoke(IpcChannel.SyncAccounting),
 
   getActivityLog: (): Promise<ActivityEventDto[]> => ipcRenderer.invoke(IpcChannel.GetActivityLog),
+
+  listBackups: (): Promise<BackupInfoDto[]> => ipcRenderer.invoke(IpcChannel.ListBackups),
+
+  createBackup: (): Promise<{ ok: boolean; backup?: BackupInfoDto; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.CreateBackup),
+
+  restoreBackup: (backupId: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.RestoreBackup, backupId),
+
+  openBackupsFolder: (): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenBackupsFolder),
+
+  previewTsmWrite: (): Promise<TsmWritePreviewDto> => ipcRenderer.invoke(IpcChannel.PreviewTsmWrite),
+
+  confirmTsmWrite: (
+    assignments: TsmWritePreviewDto['assignments']
+  ): Promise<TsmWriteResultDto> => ipcRenderer.invoke(IpcChannel.ConfirmTsmWrite, assignments),
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 

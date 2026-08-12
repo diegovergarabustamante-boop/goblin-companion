@@ -4,7 +4,7 @@ Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auctio
 
 Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
 
-## Estado actual (Etapa 5 — Opción 3 en la web)
+## Estado actual (Etapa 6 — Write TSM + backups)
 
 Lo que ya funciona:
 
@@ -17,10 +17,10 @@ Lo que ya funciona:
 - **Watcher + sync a DB** (Etapa 3): inventario → carrito; accounting → ItemSellStats.
 - **Connection monitor + cola** (Etapa 4): reintenta syncs pendientes cuando Django vuelve.
 - **Local server + Opción 3** (Etapa 5): `127.0.0.1:8765/status` y `/sync`; paneles en Decoder/TSM/Cart y chip en navbar.
+- **Write TSM + backups rotatorios** (Etapa 6): `backup-manager` en AppData, Controls preview/confirm, tray → Controls, `POST /backup` para que el Cart web pida backup antes de escribir; endpoints Django `/api/companion/tsm-write/`.
 
 Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
 
-- Write to TSM Groups + backups rotatorios reales (Etapa 6).
 - Auto-arranque, notificaciones nativas (Etapa 7).
 - Installer `.exe` (Etapa 8).
 

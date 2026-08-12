@@ -11,8 +11,14 @@ import {
   onActivity
 } from './activity-log'
 import { isQuittingApp, markQuitting } from './app-state'
+import {
+  createRotatingBackup,
+  listBackups,
+  openBackupsFolder,
+  restoreBackup
+} from './backup-manager'
 import { startConnectionMonitor, stopConnectionMonitor } from './connection-monitor'
-import { pingDjango } from './http-client'
+import { executeTsmWrite, pingDjango, previewTsmWrite } from './http-client'
 import { loadDotEnv } from './load-env'
 import { startLocalServer, stopLocalServer } from './local-server'
 import { resolveLuaPath } from './paths'
@@ -95,6 +101,29 @@ async function runManualSync(kind: 'inventory' | 'accounting'): Promise<{ ok: bo
   return { ok: result.ok, error: result.error }
 }
 
+async function runTsmWritePreview() {
+  const filePath = resolveLuaPath('inventory')
+  if (!filePath) return { ok: false, error: 'SavedVariables no configurado' }
+  return previewTsmWrite(getSettings(), filePath)
+}
+
+async function runTsmWriteConfirm(assignments: Parameters<typeof executeTsmWrite>[2]) {
+  const filePath = resolveLuaPath('inventory')
+  if (!filePath) return { ok: false, error: 'SavedVariables no configurado' }
+  try {
+    createRotatingBackup(filePath)
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+  const result = await executeTsmWrite(getSettings(), filePath, assignments)
+  if (result.ok) {
+    appendActivity('success', 'Write TSM Groups OK', JSON.stringify(result.stats ?? {}))
+  } else {
+    appendActivity('error', 'Write TSM Groups falló', result.error)
+  }
+  return result
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.GetSettings, () => getSettings())
 
@@ -131,6 +160,23 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.SyncInventory, () => runManualSync('inventory'))
   ipcMain.handle(IpcChannel.SyncAccounting, () => runManualSync('accounting'))
   ipcMain.handle(IpcChannel.GetActivityLog, () => getActivityLog())
+
+  ipcMain.handle(IpcChannel.ListBackups, () => listBackups())
+  ipcMain.handle(IpcChannel.CreateBackup, () => {
+    try {
+      const backup = createRotatingBackup()
+      return { ok: true, backup }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  })
+  ipcMain.handle(IpcChannel.RestoreBackup, (_event, backupId: string) => restoreBackup(backupId))
+  ipcMain.handle(IpcChannel.OpenBackupsFolder, () => {
+    openBackupsFolder()
+  })
+
+  ipcMain.handle(IpcChannel.PreviewTsmWrite, () => runTsmWritePreview())
+  ipcMain.handle(IpcChannel.ConfirmTsmWrite, (_event, assignments) => runTsmWriteConfirm(assignments))
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -154,7 +200,8 @@ if (!gotLock) {
       showWindowOnTab,
       getDjangoUrl: () => getSettings().djangoUrl,
       syncInventory: () => void runManualSync('inventory'),
-      syncAccounting: () => void runManualSync('accounting')
+      syncAccounting: () => void runManualSync('accounting'),
+      writeTsm: () => showWindowOnTab('controls')
     })
 
     wireWatcher()

@@ -496,6 +496,9 @@ body {
 .activity-item--success .activity-item__message {
   color: var(--color-success);
 }
+.activity-item--info .activity-item__message {
+  color: var(--color-accent, #38bdf8);
+}
 .activity-item--warn .activity-item__message {
   color: var(--color-warning);
 }

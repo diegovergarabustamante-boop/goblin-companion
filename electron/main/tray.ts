@@ -17,6 +17,7 @@ interface CreateTrayOptions {
   getDjangoUrl: () => string
   syncInventory: () => void
   syncAccounting: () => void
+  writeTsm: () => void
 }
 
 let tray: Tray | null = null
@@ -41,7 +42,7 @@ function buildMenu(options: CreateTrayOptions): Menu {
   return Menu.buildFromTemplate([
     { label: 'Sync inventario', click: () => options.syncInventory() },
     { label: 'Sync accounting', click: () => options.syncAccounting() },
-    { label: 'Write TSM Groups…', enabled: false },
+    { label: 'Write TSM Groups…', click: () => options.writeTsm() },
     { type: 'separator' },
     {
       label: 'Abrir web',

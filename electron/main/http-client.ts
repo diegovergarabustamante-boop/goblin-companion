@@ -153,3 +153,96 @@ export function syncAccounting(
 ): Promise<CompanionSyncResult> {
   return postCompanionSync(settings, '/api/companion/sync-accounting/', filePath)
 }
+
+export interface TsmWritePreview {
+  ok: boolean
+  preview?: Array<{ group: string; details: string; total_items: number }>
+  assignments?: Array<{ group: string; item_ids: string[]; clear_first?: boolean }>
+  itemCount?: number
+  totalItemsAffected?: number
+  error?: string
+}
+
+export interface TsmWriteResult {
+  ok: boolean
+  stats?: Record<string, number>
+  backupPath?: string
+  error?: string
+}
+
+export async function previewTsmWrite(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  filePath: string
+): Promise<TsmWritePreview> {
+  let url: string
+  try {
+    url = new URL('/api/companion/tsm-write/preview/', settings.djangoUrl).toString()
+  } catch {
+    return { ok: false, error: `Django URL inválida: "${settings.djangoUrl}"` }
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: companionHeaders(settings.companionToken),
+      body: JSON.stringify({ file_path: filePath })
+    })
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      preview?: TsmWritePreview['preview']
+      assignments?: TsmWritePreview['assignments']
+      item_count?: number
+      total_items_affected?: number
+      error?: string
+    } | null
+
+    if (!response.ok || !body?.success) {
+      return { ok: false, error: body?.error ?? `HTTP ${response.status}` }
+    }
+
+    return {
+      ok: true,
+      preview: body.preview,
+      assignments: body.assignments,
+      itemCount: body.item_count,
+      totalItemsAffected: body.total_items_affected
+    }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export async function executeTsmWrite(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  filePath: string,
+  assignments: TsmWritePreview['assignments']
+): Promise<TsmWriteResult> {
+  let url: string
+  try {
+    url = new URL('/api/companion/tsm-write/', settings.djangoUrl).toString()
+  } catch {
+    return { ok: false, error: `Django URL inválida: "${settings.djangoUrl}"` }
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: companionHeaders(settings.companionToken),
+      body: JSON.stringify({ file_path: filePath, assignments })
+    })
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      stats?: Record<string, number>
+      backup_path?: string
+      error?: string
+    } | null
+
+    if (!response.ok || !body?.success) {
+      return { ok: false, error: body?.error ?? `HTTP ${response.status}` }
+    }
+
+    return { ok: true, stats: body.stats, backupPath: body.backup_path }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}

@@ -337,7 +337,7 @@ Estimación: **~10–14 días de trabajo enfocado**, no “12 días con updater 
 | 3. Watcher + sync | 2–3 | Auto/manual sync real a DB | **Hecho (3a+3b)** — watcher + `sync-inventory` / `sync-accounting` |
 | 4. Connection + queue | 1 | Amarillo/rojo + reintentos | **Hecho** — connection-monitor + cola con flush al reconectar |
 | 5. Local server + Opción 3 web | 1–2 | Decoder + TSM + Carrito + Home | **Hecho** — `:8765/status|/sync` + paneles en Decoder/TSM/Cart + chip en navbar (Home) |
-| 6. Write TSM + backups rotatorios | 1–2 | Preview, confirm, N backups, restore UI | Pendiente |
+| 6. Write TSM + backups rotatorios | 1–2 | Preview, confirm, N backups, restore UI | **Hecho** — backup-manager + `/backup` + Controls Write + endpoints companion `tsm-write` |
 | 7. Polish UI + logs + notifs | 1–2 | Se siente producto | Pendiente |
 | 8. Installer `.exe` | 1 | Cuando lo anterior esté estable | Pendiente |
 
