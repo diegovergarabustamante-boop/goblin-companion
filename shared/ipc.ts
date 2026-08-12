@@ -4,6 +4,7 @@ export const IpcChannel = {
   UpdateSettings: 'settings:update',
   GetStatus: 'status:get',
   StatusChanged: 'status:changed',
+  TestConnection: 'settings:test-connection',
   NavigateTo: 'nav:goto',
   WindowMinimize: 'window:minimize',
   WindowClose: 'window:close',

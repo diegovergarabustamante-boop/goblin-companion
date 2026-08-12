@@ -1,12 +1,15 @@
 import { useEffect, useState, type JSX } from 'react'
 
-import type { CompanionSettings } from '../../shared/settings'
+import type { CompanionSettings, DjangoPingResult } from '../../shared/settings'
 
 type SaveState = 'idle' | 'saving' | 'saved'
+type TestState = 'idle' | 'testing'
 
 function Settings(): JSX.Element {
   const [settings, setSettings] = useState<CompanionSettings | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [testState, setTestState] = useState<TestState>('idle')
+  const [testResult, setTestResult] = useState<DjangoPingResult | null>(null)
 
   useEffect(() => {
     window.goblin.getSettings().then(setSettings)
@@ -14,6 +17,7 @@ function Settings(): JSX.Element {
 
   function patch(update: Partial<CompanionSettings>): void {
     setSettings((current) => (current ? { ...current, ...update } : current))
+    setTestResult(null)
   }
 
   async function handleSave(): Promise<void> {
@@ -22,6 +26,18 @@ function Settings(): JSX.Element {
     await window.goblin.updateSettings(settings)
     setSaveState('saved')
     setTimeout(() => setSaveState('idle'), 1500)
+  }
+
+  async function handleTestConnection(): Promise<void> {
+    if (!settings) return
+    setTestState('testing')
+    setTestResult(null)
+    const result = await window.goblin.testConnection({
+      djangoUrl: settings.djangoUrl,
+      companionToken: settings.companionToken
+    })
+    setTestResult(result)
+    setTestState('idle')
   }
 
   if (!settings) {
@@ -54,6 +70,19 @@ function Settings(): JSX.Element {
             placeholder="X-Companion-Token"
           />
         </label>
+
+        <div className="button-row">
+          <button type="button" className="btn" onClick={() => void handleTestConnection()} disabled={testState === 'testing'}>
+            {testState === 'testing' ? 'Probando…' : 'Probar conexión'}
+          </button>
+          {testResult && (
+            <span className={testResult.ok ? 'test-result test-result--ok' : 'test-result test-result--error'}>
+              {testResult.ok
+                ? `✓ Conectado${testResult.user ? ` como ${testResult.user}` : ''}`
+                : `✗ ${testResult.error}`}
+            </span>
+          )}
+        </div>
       </section>
 
       <section className="glass-panel">

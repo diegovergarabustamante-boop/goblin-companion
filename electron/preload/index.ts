@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 import { IpcChannel, type AppTab } from '../../shared/ipc'
-import type { CompanionSettings, CompanionStatusSnapshot } from '../../shared/settings'
+import type { CompanionSettings, CompanionStatusSnapshot, DjangoPingResult } from '../../shared/settings'
 
 const goblinApi = {
   getSettings: (): Promise<CompanionSettings> => ipcRenderer.invoke(IpcChannel.GetSettings),
@@ -10,6 +10,9 @@ const goblinApi = {
     ipcRenderer.invoke(IpcChannel.UpdateSettings, patch),
 
   getStatus: (): Promise<CompanionStatusSnapshot> => ipcRenderer.invoke(IpcChannel.GetStatus),
+
+  testConnection: (override?: Partial<CompanionSettings>): Promise<DjangoPingResult> =>
+    ipcRenderer.invoke(IpcChannel.TestConnection, override),
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 

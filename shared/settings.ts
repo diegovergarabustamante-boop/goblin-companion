@@ -33,3 +33,11 @@ export interface CompanionStatusSnapshot {
   djangoReachable: boolean | null
   lastSyncAt: string | null
 }
+
+/** Resultado de golpear `GET /api/companion/ping/` (botón "Probar conexión"). */
+export interface DjangoPingResult {
+  ok: boolean
+  serverTime?: string
+  user?: string | null
+  error?: string
+}

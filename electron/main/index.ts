@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { BrowserWindow, app, ipcMain, shell } from 'electron'
 
 import { IpcChannel, type AppTab } from '../../shared/ipc'
-import type { CompanionStatusSnapshot } from '../../shared/settings'
+import type { CompanionSettings, CompanionStatusSnapshot } from '../../shared/settings'
 import { isQuittingApp, markQuitting } from './app-state'
+import { pingDjango } from './http-client'
 import { getSettings, updateSettings } from './settings'
 import { createTray, setTrayStatus } from './tray'
 import { getWindowBounds, saveWindowBounds } from './window-state'
@@ -91,6 +92,12 @@ function registerIpcHandlers(): void {
   ipcMain.on(IpcChannel.WindowClose, () => mainWindow?.hide())
 
   ipcMain.handle(IpcChannel.OpenExternal, (_event, url: string) => shell.openExternal(url))
+
+  // Acepta un override sin persistir para poder "Probar conexión" antes de
+  // guardar (p.ej. mientras el usuario todavía está editando el formulario).
+  ipcMain.handle(IpcChannel.TestConnection, (_event, override?: Partial<CompanionSettings>) =>
+    pingDjango({ ...getSettings(), ...override })
+  )
 }
 
 const gotLock = app.requestSingleInstanceLock()

@@ -317,7 +317,20 @@ body {
 /* ---------- Buttons & form controls ---------- */
 .button-row {
   display: flex;
+  align-items: center;
   gap: var(--spacing-sm);
+}
+
+.test-result {
+  font-size: 12px;
+}
+
+.test-result--ok {
+  color: var(--color-success);
+}
+
+.test-result--error {
+  color: var(--color-danger);
 }
 
 .btn {

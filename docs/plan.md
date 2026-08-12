@@ -128,7 +128,15 @@ Header: X-Companion-Token: <token en .env de Django y de la companion>
 
 **Decisión tomada (Agosto 2026):** token estático compartido en `.env` de ambos lados para el día 1. Sin login flow, sin cookie jar, sin HTML scraping.
 
-Los endpoints de negocio siguen igual:
+**Implementado (Etapa 2, Agosto 2026):**
+
+- `market/decorators.py::require_companion_token` — compara `X-Companion-Token` contra `settings.COMPANION_TOKEN` con `hmac.compare_digest`. 503 si el servidor no tiene el token configurado, 401 si falta o no coincide.
+- `GET /api/companion/ping/` (`market/views/companion_views.py`) — protegido por el decorador anterior. Devuelve `{success, server_time, user}`. No hay endpoint de "auth" separado: con token estático no hace falta emitir nada, `ping` cumple las dos funciones (probar credenciales + health check).
+- `electron/main/http-client.ts::pingDjango` — cliente en la companion, timeout 5s.
+- Botón "Probar conexión" en el tab Settings de la companion, wireado a `window.goblin.testConnection()`.
+- Tests: `market/tests.py::CompanionPingTests` (401 sin token, 401 con token incorrecto, 200 con token correcto, 503 sin `COMPANION_TOKEN` configurado).
+
+Los endpoints de negocio siguen igual (sin `X-Companion-Token`, sin cambios):
 
 | Endpoint | Uso |
 |---|---|
@@ -136,6 +144,8 @@ Los endpoints de negocio siguen igual:
 | `POST /api/process-lua-file/` | Sync accounting |
 | `POST /api/admin/tsm-write/` | Write (con confirmación UI) |
 | `GET /api/auction-status/` | Ping opcional |
+
+*(La Etapa 3 decidirá si estos también deben pasar por `require_companion_token` cuando el watcher/sync-manager empiece a llamarlos directamente en vez del navegador.)*
 
 ---
 
@@ -322,8 +332,8 @@ Estimación: **~10–14 días de trabajo enfocado**, no “12 días con updater 
 | Etapa | Días | Entregable | Estado |
 |---|---|---|---|
 | 0. Scaffold + UI shell | 1–2 | Ventana glass + tabs + tray placeholder | **Hecho** |
-| 1. Settings + wizard | 1–2 | Paths + token + test conexión | Settings persistente hecho; falta first-run wizard |
-| 2. Auth Django token | 0.5–1 | Endpoint + client companion | Pendiente |
+| 1. Settings + wizard | 1–2 | Paths + token + test conexión | Settings persistente + "Probar conexión" hechos; falta first-run wizard dedicado |
+| 2. Auth Django token | 0.5–1 | Endpoint + client companion | **Hecho** — `GET /api/companion/ping/` protegido por `X-Companion-Token`, cliente HTTP en la companion |
 | 3. Watcher + sync | 2–3 | Auto/manual sync real a DB | Pendiente |
 | 4. Connection + queue | 1 | Amarillo/rojo + reintentos | Pendiente |
 | 5. Local server + Opción 3 web | 1–2 | Decoder + TSM + Carrito + Home | Pendiente |

@@ -14,11 +14,11 @@ Lo que ya funciona:
 - 4 tabs: Dashboard, Activity Log, Controls, Settings (+ tab "P&L — Coming soon" deshabilitado).
 - Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
 - IPC tipado entre proceso principal, preload y renderer (`shared/ipc.ts`, `shared/settings.ts`).
+- **Auth companion contra Django** (Etapa 2): `GET /api/companion/ping/` protegido por `X-Companion-Token` (ver `require_companion_token` en el repo `Auction-house-Profit`), cliente HTTP (`electron/main/http-client.ts`) y botón "Probar conexión" en Settings.
 
 Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
 
 - File watcher real (chokidar) y sync automático/manual contra Django.
-- Auth companion en Django (`X-Companion-Token`).
 - Local server `127.0.0.1:8765` (`/status`, `/sync`) y el indicador "Opción 3" en la web.
 - Write to TSM Groups + backups rotatorios reales.
 - Auto-arranque, notificaciones nativas, installer `.exe`.
