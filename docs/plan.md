@@ -334,7 +334,7 @@ Estimación: **~10–14 días de trabajo enfocado**, no “12 días con updater 
 | 0. Scaffold + UI shell | 1–2 | Ventana glass + tabs + tray placeholder | **Hecho** |
 | 1. Settings + wizard | 1–2 | Paths + token + test conexión | Settings persistente + "Probar conexión" hechos; falta first-run wizard dedicado |
 | 2. Auth Django token | 0.5–1 | Endpoint + client companion | **Hecho** — `GET /api/companion/ping/` protegido por `X-Companion-Token`, cliente HTTP en la companion |
-| 3. Watcher + sync | 2–3 | Auto/manual sync real a DB | **3a hecho** — watcher + sync lee `.lua` vía `/api/companion/read-saved-variable/`. **3b pendiente** — persistir inventario/accounting a DB |
+| 3. Watcher + sync | 2–3 | Auto/manual sync real a DB | **Hecho (3a+3b)** — watcher + `sync-inventory` (carrito si hay chars seleccionados) + `sync-accounting` (ItemSellStats) |
 | 4. Connection + queue | 1 | Amarillo/rojo + reintentos | Pendiente |
 | 5. Local server + Opción 3 web | 1–2 | Decoder + TSM + Carrito + Home | Pendiente |
 | 6. Write TSM + backups rotatorios | 1–2 | Preview, confirm, N backups, restore UI | Pendiente |

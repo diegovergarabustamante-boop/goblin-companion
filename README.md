@@ -4,7 +4,7 @@ Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auctio
 
 Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
 
-## Estado actual (Etapa 3a — watcher + sync de lectura)
+## Estado actual (Etapa 3 — watcher + sync a DB)
 
 Lo que ya funciona:
 
@@ -15,11 +15,10 @@ Lo que ya funciona:
 - Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
 - IPC tipado entre proceso principal, preload y renderer (`shared/ipc.ts`, `shared/settings.ts`).
 - **Auth companion contra Django** (Etapa 2): `GET /api/companion/ping/` + botón "Probar conexión".
-- **Watcher + sync** (Etapa 3a): chokidar sobre `TradeSkillMaster.lua` / `TradeSkillMaster_Accounting.lua`, cooldown, activity log JSONL, sync manual desde tray/Controls/Dashboard. Llama a `POST /api/companion/read-saved-variable/` (todavía **no** persiste a la DB).
+- **Watcher + sync** (Etapa 3): chokidar + sync auto/manual. Inventario → carrito (si hay chars seleccionados en Decoder). Accounting → ItemSellStats.
 
 Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
 
-- Persistencia real a DB (Etapa 3b: inventario/accounting en Django).
 - Cola de reintentos cuando Django está caído (Etapa 4).
 - Local server `127.0.0.1:8765` (`/status`, `/sync`) y el indicador "Opción 3" en la web.
 - Write to TSM Groups + backups rotatorios reales.

@@ -55,8 +55,8 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
         Forzar sync ahora
       </button>
       <p className="page__note">
-        Etapa 3a: el sync lee el `.lua` vía Django (`/api/companion/read-saved-variable/`). La persistencia a DB
-        (inventario/accounting reales) llega en el siguiente incremento.
+        Etapa 3b: el sync persiste en Django. Inventario actualiza el carrito si hay personajes
+        seleccionados en Decoder; accounting guarda ItemSellStats.
       </p>
     </div>
   )

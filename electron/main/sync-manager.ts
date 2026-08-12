@@ -2,7 +2,7 @@ import { basename } from 'node:path'
 
 import type { CompanionStatusSnapshot, TrayStatus } from '../../shared/settings'
 import { appendActivity } from './activity-log'
-import { readSavedVariable } from './http-client'
+import { syncAccounting, syncInventory } from './http-client'
 import { getSettings } from './settings'
 import { validateLuaFile, type WatchedKind } from './watcher'
 
@@ -14,6 +14,7 @@ export interface SyncResult {
   filePath: string
   filename?: string
   sizeFormatted?: string
+  detail?: string
   error?: string
 }
 
@@ -98,7 +99,9 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
   emitStatus()
   appendActivity('info', `Sync ${kind} (${reason})…`, basename(filePath))
 
-  const result = await readSavedVariable(settings, filePath)
+  const result =
+    kind === 'inventory' ? await syncInventory(settings, filePath) : await syncAccounting(settings, filePath)
+
   state.syncing = false
 
   if (!result.ok) {
@@ -119,7 +122,7 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
   appendActivity(
     'success',
     `Sync ${kind} OK`,
-    `${result.filename ?? basename(filePath)} · ${result.sizeFormatted ?? '?'}`
+    `${result.filename ?? basename(filePath)} · ${result.detail ?? result.sizeFormatted ?? '?'}`
   )
   emitStatus()
 
@@ -128,7 +131,8 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
     kind,
     filePath,
     filename: result.filename,
-    sizeFormatted: result.sizeFormatted
+    sizeFormatted: result.sizeFormatted,
+    detail: result.detail
   }
 }
 
