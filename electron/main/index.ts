@@ -11,8 +11,10 @@ import {
   onActivity
 } from './activity-log'
 import { isQuittingApp, markQuitting } from './app-state'
+import { startConnectionMonitor, stopConnectionMonitor } from './connection-monitor'
 import { pingDjango } from './http-client'
 import { loadDotEnv } from './load-env'
+import { startLocalServer, stopLocalServer } from './local-server'
 import { resolveLuaPath } from './paths'
 import { getSettings, updateSettings } from './settings'
 import { getSyncSnapshot, markDjangoReachable, onSyncStatusChange, syncFile } from './sync-manager'
@@ -103,6 +105,11 @@ function registerIpcHandlers(): void {
       prev.autoSyncEnabled !== next.autoSyncEnabled ||
       prev.wowSavedVariablesPath !== next.wowSavedVariablesPath
     if (watcherRelevant) wireWatcher()
+
+    if (prev.localServerPort !== next.localServerPort) {
+      startLocalServer(next.localServerPort)
+    }
+
     broadcastStatus()
     return next
   })
@@ -151,12 +158,16 @@ if (!gotLock) {
     })
 
     wireWatcher()
+    startLocalServer()
+    startConnectionMonitor()
     broadcastStatus()
     appendActivity('info', 'Goblin Companion listo')
   })
 
   app.on('before-quit', () => {
     stopWatcher()
+    stopConnectionMonitor()
+    stopLocalServer()
   })
 
   app.on('window-all-closed', () => {

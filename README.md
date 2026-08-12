@@ -4,7 +4,7 @@ Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auctio
 
 Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
 
-## Estado actual (Etapa 3 — watcher + sync a DB)
+## Estado actual (Etapa 5 — Opción 3 en la web)
 
 Lo que ya funciona:
 
@@ -13,16 +13,16 @@ Lo que ya funciona:
 - Cerrar la ventana `[×]` minimiza a la bandeja en vez de cerrar la app.
 - 4 tabs: Dashboard, Activity Log, Controls, Settings (+ tab "P&L — Coming soon" deshabilitado).
 - Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
-- IPC tipado entre proceso principal, preload y renderer (`shared/ipc.ts`, `shared/settings.ts`).
-- **Auth companion contra Django** (Etapa 2): `GET /api/companion/ping/` + botón "Probar conexión".
-- **Watcher + sync** (Etapa 3): chokidar + sync auto/manual. Inventario → carrito (si hay chars seleccionados en Decoder). Accounting → ItemSellStats.
+- **Auth companion contra Django** (Etapa 2).
+- **Watcher + sync a DB** (Etapa 3): inventario → carrito; accounting → ItemSellStats.
+- **Connection monitor + cola** (Etapa 4): reintenta syncs pendientes cuando Django vuelve.
+- **Local server + Opción 3** (Etapa 5): `127.0.0.1:8765/status` y `/sync`; paneles en Decoder/TSM/Cart y chip en navbar.
 
 Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
 
-- Cola de reintentos cuando Django está caído (Etapa 4).
-- Local server `127.0.0.1:8765` (`/status`, `/sync`) y el indicador "Opción 3" en la web.
-- Write to TSM Groups + backups rotatorios reales.
-- Auto-arranque, notificaciones nativas, installer `.exe`.
+- Write to TSM Groups + backups rotatorios reales (Etapa 6).
+- Auto-arranque, notificaciones nativas (Etapa 7).
+- Installer `.exe` (Etapa 8).
 
 ## Requisitos
 

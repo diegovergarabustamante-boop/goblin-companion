@@ -46,8 +46,9 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
         </div>
 
         <div className="dashboard-card">
-          <span className="dashboard-card__label">Tray</span>
-          <span className="dashboard-card__value">{status?.trayStatus ?? 'gray'}</span>
+          <span className="dashboard-card__label">Cola</span>
+          <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
+          <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : 'pendientes'}</span>
         </div>
       </div>
 

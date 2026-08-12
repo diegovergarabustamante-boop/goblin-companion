@@ -32,6 +32,10 @@ export interface CompanionStatusSnapshot {
   autoSyncEnabled: boolean
   djangoReachable: boolean | null
   lastSyncAt: string | null
+  lastInventorySyncAt: string | null
+  lastAccountingSyncAt: string | null
+  queueLength: number
+  syncing: boolean
 }
 
 /** Resultado de golpear `GET /api/companion/ping/` (botón "Probar conexión"). */
