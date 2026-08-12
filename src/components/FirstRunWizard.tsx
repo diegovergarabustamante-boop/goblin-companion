@@ -14,9 +14,42 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
   const [testResult, setTestResult] = useState<DjangoPingResult | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Login inputs
+  const [user, setUser] = useState(initial.username || '')
+  const [pass, setPass] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+
   function patch(update: Partial<CompanionSettings>): void {
     setDraft((current) => ({ ...current, ...update }))
     setTestResult(null)
+  }
+
+  async function handleLogin(): Promise<void> {
+    if (!user.trim() || !pass.trim()) {
+      setLoginError('Ingresá usuario y contraseña de la web')
+      return
+    }
+    setTesting(true)
+    setLoginError(null)
+
+    try {
+      const result = await window.goblin.login(draft.djangoUrl || 'http://127.0.0.1:8000', user.trim(), pass)
+      if (result.ok && result.token) {
+        setDraft((curr) => ({
+          ...curr,
+          username: result.username ?? user.trim(),
+          companionToken: result.token!
+        }))
+        setTestResult({ ok: true, user: result.username })
+        setStep(1) // Move to next step!
+      } else {
+        setLoginError(result.error || 'Credenciales inválidas')
+      }
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTesting(false)
+    }
   }
 
   async function handleTest(): Promise<void> {
@@ -45,16 +78,18 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
       <div className="wizard-card glass-panel">
         <p className="wizard-kicker">Goblin Companion</p>
         <h2 id="wizard-title">
-          {step === 0 && 'Conexión con Django'}
-          {step === 1 && 'Carpeta de WoW'}
-          {step === 2 && 'Preferencias'}
+          {step === 0 && '🔐 Iniciar Sesión con tu Cuenta Web'}
+          {step === 1 && '📁 Carpeta de WoW'}
+          {step === 2 && '⚙️ Preferencias'}
         </h2>
 
         {step === 0 ? (
           <>
-            <p className="page__note">Mismo token que COMPANION_TOKEN en el .env de Django.</p>
+            <p className="page__note">
+              Ingresá con las mismas credenciales que usás en la web <strong>Auction House Profit</strong>.
+            </p>
             <label className="field">
-              <span>Django URL</span>
+              <span>URL del Servidor</span>
               <input
                 type="text"
                 value={draft.djangoUrl}
@@ -63,23 +98,43 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
               />
             </label>
             <label className="field">
-              <span>Companion Token</span>
+              <span>Usuario Web</span>
               <input
-                type="password"
-                value={draft.companionToken}
-                onChange={(e) => patch({ companionToken: e.target.value })}
-                placeholder="X-Companion-Token"
+                type="text"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                placeholder="Tu usuario"
               />
             </label>
+            <label className="field">
+              <span>Contraseña</span>
+              <input
+                type="password"
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                placeholder="Tu contraseña web"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleLogin()
+                }}
+              />
+            </label>
+
+            {loginError ? (
+              <div style={{ color: '#f87171', fontSize: '0.85em', fontWeight: 600 }}>
+                ✗ {loginError}
+              </div>
+            ) : null}
+
+            {draft.companionToken ? (
+              <div style={{ color: '#4ade80', fontSize: '0.85em', fontWeight: 600 }}>
+                ✓ Conectado como {draft.username || 'Usuario Web'}
+              </div>
+            ) : null}
+
             <div className="button-row">
-              <button type="button" className="btn" disabled={testing} onClick={() => void handleTest()}>
-                {testing ? 'Probando…' : 'Probar conexión'}
+              <button type="button" className="btn btn--primary" disabled={testing} onClick={() => void handleLogin()}>
+                {testing ? '🔐 Verificando…' : '🔐 Iniciar Sesión'}
               </button>
-              {testResult ? (
-                <span className={testResult.ok ? 'test-result test-result--ok' : 'test-result test-result--error'}>
-                  {testResult.ok ? '✓ OK' : `✗ ${testResult.error}`}
-                </span>
-              ) : null}
             </div>
           </>
         ) : null}
@@ -103,13 +158,14 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
 
         {step === 2 ? (
           <>
+            <p className="page__note">Podés cambiar estos valores en Settings más tarde.</p>
             <label className="checkbox-field">
               <input
                 type="checkbox"
                 checked={draft.autoSyncEnabled}
                 onChange={(e) => patch({ autoSyncEnabled: e.target.checked })}
               />
-              <span>Activar auto-sync ahora</span>
+              <span>Auto-sync al detectar cambios en SavedVariables</span>
             </label>
             <label className="checkbox-field">
               <input
@@ -117,15 +173,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
                 checked={draft.notificationsEnabled}
                 onChange={(e) => patch({ notificationsEnabled: e.target.checked })}
               />
-              <span>Notificaciones nativas</span>
-            </label>
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={draft.startWithWindows}
-                onChange={(e) => patch({ startWithWindows: e.target.checked })}
-              />
-              <span>Iniciar con Windows</span>
+              <span>Notificaciones de escritorio</span>
             </label>
           </>
         ) : null}
@@ -133,16 +181,22 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         <div className="wizard-actions button-row">
           {step > 0 ? (
             <button type="button" className="btn" onClick={() => setStep((s) => s - 1)}>
-              Atrás
+              Anterior
             </button>
           ) : null}
+
           {step < 2 ? (
-            <button type="button" className="btn btn--primary" onClick={() => setStep((s) => s + 1)}>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={step === 0 && !draft.companionToken}
+              onClick={() => setStep((s) => s + 1)}
+            >
               Siguiente
             </button>
           ) : (
             <button type="button" className="btn btn--primary" disabled={saving} onClick={() => void finish()}>
-              {saving ? 'Guardando…' : 'Empezar'}
+              {saving ? 'Guardando…' : 'Comenzar a usar'}
             </button>
           )}
         </div>

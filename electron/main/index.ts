@@ -22,7 +22,7 @@ import {
   restoreBackup
 } from './backup-manager'
 import { startConnectionMonitor, stopConnectionMonitor } from './connection-monitor'
-import { executeTsmWrite, pingDjango, previewTsmWrite } from './http-client'
+import { executeTsmWrite, loginDjango, pingDjango, previewTsmWrite } from './http-client'
 import { loadDotEnv } from './load-env'
 import { startLocalServer, stopLocalServer } from './local-server'
 import { notify } from './notifications'
@@ -194,6 +194,30 @@ function registerIpcHandlers(): void {
     markDjangoReachable(result.ok)
     broadcastStatus()
     return result
+  })
+
+  ipcMain.handle(IpcChannel.LoginCompanion, async (_event, djangoUrl: string, username: string, password: string) => {
+    const result = await loginDjango(djangoUrl, username, password)
+    if (result.ok && result.token) {
+      updateSettings({
+        djangoUrl,
+        username: result.username ?? username,
+        companionToken: result.token,
+        firstRunCompleted: true
+      })
+      markDjangoReachable(true)
+      broadcastStatus()
+    }
+    return result
+  })
+
+  ipcMain.handle(IpcChannel.LogoutCompanion, () => {
+    updateSettings({
+      companionToken: '',
+      username: ''
+    })
+    markDjangoReachable(false)
+    broadcastStatus()
   })
 
   ipcMain.handle(IpcChannel.SyncInventory, () => runManualSync('inventory'))

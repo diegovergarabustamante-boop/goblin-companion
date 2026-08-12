@@ -7,6 +7,7 @@
 export interface CompanionSettings {
   djangoUrl: string
   companionToken: string
+  username: string
   autoSyncEnabled: boolean
   backupCount: number
   wowSavedVariablesPath: string
@@ -19,6 +20,7 @@ export interface CompanionSettings {
 export const DEFAULT_SETTINGS: CompanionSettings = {
   djangoUrl: 'http://127.0.0.1:8000',
   companionToken: '',
+  username: '',
   autoSyncEnabled: false,
   backupCount: 3,
   wowSavedVariablesPath: '',

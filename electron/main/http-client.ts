@@ -46,6 +46,59 @@ function companionHeaders(token: string): Record<string, string> {
   return { 'X-Companion-Token': token, 'Content-Type': 'application/json' }
 }
 
+export interface CompanionLoginResult {
+  ok: boolean
+  token?: string
+  username?: string
+  userId?: number
+  error?: string
+}
+
+export async function loginDjango(
+  djangoUrl: string,
+  username: string,
+  password: string
+): Promise<CompanionLoginResult> {
+  let url: string
+  try {
+    url = new URL('/api/companion/login/', djangoUrl).toString()
+  } catch {
+    return { ok: false, error: `URL del servidor inválida: "${djangoUrl}"` }
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      signal: controller.signal
+    })
+
+    const body = (await response.json().catch(() => null)) as { success?: boolean; token?: string; username?: string; user_id?: number; error?: string } | null
+
+    if (!response.ok || !body?.success || !body?.token) {
+      return { ok: false, error: body?.error ?? `Credenciales inválidas o error HTTP ${response.status}` }
+    }
+
+    return {
+      ok: true,
+      token: body.token,
+      username: body.username ?? username,
+      userId: body.user_id
+    }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return { ok: false, error: `Sin respuesta del servidor después de ${PING_TIMEOUT_MS}ms` }
+    }
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function pingDjango(
   settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>
 ): Promise<DjangoPingResult> {

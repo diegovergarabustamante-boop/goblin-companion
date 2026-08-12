@@ -19,6 +19,8 @@ export const IpcChannel = {
   PreviewTsmWrite: 'tsm:preview-write',
   ConfirmTsmWrite: 'tsm:confirm-write',
   NavigateTo: 'nav:goto',
+  LoginCompanion: 'auth:login',
+  LogoutCompanion: 'auth:logout',
   WindowMinimize: 'window:minimize',
   WindowClose: 'window:close',
   OpenExternal: 'shell:open-external'

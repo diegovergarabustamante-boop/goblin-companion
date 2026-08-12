@@ -52,6 +52,11 @@ const goblinApi = {
   testConnection: (override?: Partial<CompanionSettings>): Promise<DjangoPingResult> =>
     ipcRenderer.invoke(IpcChannel.TestConnection, override),
 
+  login: (djangoUrl: string, username: string, password: string): Promise<{ ok: boolean; token?: string; username?: string; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.LoginCompanion, djangoUrl, username, password),
+
+  logout: (): Promise<void> => ipcRenderer.invoke(IpcChannel.LogoutCompanion),
+
   syncInventory: (): Promise<SyncActionResult> => ipcRenderer.invoke(IpcChannel.SyncInventory),
 
   syncAccounting: (): Promise<SyncActionResult> => ipcRenderer.invoke(IpcChannel.SyncAccounting),
