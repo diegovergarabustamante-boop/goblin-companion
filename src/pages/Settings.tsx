@@ -1,0 +1,105 @@
+import { useEffect, useState, type JSX } from 'react'
+
+import type { CompanionSettings } from '../../shared/settings'
+
+type SaveState = 'idle' | 'saving' | 'saved'
+
+function Settings(): JSX.Element {
+  const [settings, setSettings] = useState<CompanionSettings | null>(null)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+
+  useEffect(() => {
+    window.goblin.getSettings().then(setSettings)
+  }, [])
+
+  function patch(update: Partial<CompanionSettings>): void {
+    setSettings((current) => (current ? { ...current, ...update } : current))
+  }
+
+  async function handleSave(): Promise<void> {
+    if (!settings) return
+    setSaveState('saving')
+    await window.goblin.updateSettings(settings)
+    setSaveState('saved')
+    setTimeout(() => setSaveState('idle'), 1500)
+  }
+
+  if (!settings) {
+    return (
+      <div className="page">
+        <p>Cargando…</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="page">
+      <section className="glass-panel">
+        <h2>Conexión con Django</h2>
+        <label className="field">
+          <span>Django URL</span>
+          <input
+            type="text"
+            value={settings.djangoUrl}
+            onChange={(event) => patch({ djangoUrl: event.target.value })}
+            placeholder="http://127.0.0.1:8000"
+          />
+        </label>
+        <label className="field">
+          <span>Companion Token</span>
+          <input
+            type="password"
+            value={settings.companionToken}
+            onChange={(event) => patch({ companionToken: event.target.value })}
+            placeholder="X-Companion-Token"
+          />
+        </label>
+      </section>
+
+      <section className="glass-panel">
+        <h2>WoW</h2>
+        <label className="field">
+          <span>Carpeta SavedVariables</span>
+          <input
+            type="text"
+            value={settings.wowSavedVariablesPath}
+            onChange={(event) => patch({ wowSavedVariablesPath: event.target.value })}
+            placeholder="…/World of Warcraft/_retail_/WTF/Account/…/SavedVariables"
+          />
+        </label>
+      </section>
+
+      <section className="glass-panel">
+        <h2>Backups</h2>
+        <label className="field">
+          <span>Copias rotatorias (1–10)</span>
+          <input
+            type="number"
+            min={1}
+            max={10}
+            value={settings.backupCount}
+            onChange={(event) => patch({ backupCount: Number(event.target.value) })}
+          />
+        </label>
+      </section>
+
+      <section className="glass-panel">
+        <h2>Notificaciones y arranque</h2>
+        <label className="checkbox-field">
+          <input type="checkbox" disabled />
+          <span>Notificaciones nativas (próximamente)</span>
+        </label>
+        <label className="checkbox-field">
+          <input type="checkbox" disabled />
+          <span>Iniciar con Windows (próximamente)</span>
+        </label>
+      </section>
+
+      <button type="button" className="btn btn--primary" onClick={() => void handleSave()}>
+        {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado ✓' : 'Guardar cambios'}
+      </button>
+    </div>
+  )
+}
+
+export default Settings
