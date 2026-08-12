@@ -107,19 +107,7 @@ function Settings(): JSX.Element {
         </label>
       </section>
 
-      <section className="glass-panel">
-        <h2>Backups</h2>
-        <label className="field">
-          <span>Copias rotatorias (1–10)</span>
-          <input
-            type="number"
-            min={1}
-            max={10}
-            value={settings.backupCount}
-            onChange={(event) => patch({ backupCount: Number(event.target.value) })}
-          />
-        </label>
-      </section>
+
 
       <section className="glass-panel">
         <h2>Notificaciones y arranque</h2>
