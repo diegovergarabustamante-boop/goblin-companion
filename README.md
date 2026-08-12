@@ -4,7 +4,9 @@ Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auctio
 
 Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
 
-## Estado actual (Etapa 7 — polish / producto)
+## Estado actual (Etapa 8 — installer)
+
+MVP completo: Stages 0–8.
 
 Lo que ya funciona:
 
@@ -17,12 +19,11 @@ Lo que ya funciona:
 - **Watcher + sync a DB** (Etapa 3): inventario → carrito; accounting → ItemSellStats.
 - **Connection monitor + cola** (Etapa 4): reintenta syncs pendientes cuando Django vuelve.
 - **Local server + Opción 3** (Etapa 5): `127.0.0.1:8765/status` y `/sync`; paneles en Decoder/TSM/Cart y chip en navbar.
-- **Write TSM + backups rotatorios** (Etapa 6): `backup-manager` en AppData, Controls preview/confirm, tray → Controls, `POST /backup` para que el Cart web pida backup antes de escribir; endpoints Django `/api/companion/tsm-write/`.
-- **Polish** (Etapa 7): notificaciones nativas, iniciar con Windows, first-run wizard, Activity Log con filtros/vaciar.
+- **Write TSM + backups rotatorios** (Etapa 6).
+- **Polish** (Etapa 7): notificaciones, autostart, first-run wizard, Activity Log.
+- **Installer Windows** (Etapa 8): `npm run dist` genera `release/GoblinCompanion-Setup-*.exe` (NSIS).
 
-Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `docs/plan.md`):
-
-- Installer `.exe` (Etapa 8).
+Fase 2 (después de usar el MVP): P&L web, auto-updater, detectar Wow.exe, etc. — ver `docs/plan.md` §13.
 
 ## Requisitos
 
@@ -33,11 +34,16 @@ Lo que **todavía no existe** (próximas etapas del plan, ver sección 12 de `do
 
 ```bash
 npm install
+npm run icon       # genera build/icon.png
 npm run dev        # abre la app con hot-reload
 npm run typecheck  # chequeo de tipos (main/preload + renderer)
 npm run build      # build de producción a out/
 npm run preview    # ejecuta el build de producción
+npm run dist       # typecheck + build + installer NSIS en release/
+npm run dist:dir   # empaqueta sin installer (carpeta win-unpacked)
 ```
+
+El instalador queda en `release/GoblinCompanion-Setup-<version>.exe`. No está firmado con certificado de código (Windows puede mostrar SmartScreen la primera vez).
 
 Copia `.env.example` a `.env` para fijar los valores por defecto (Django URL, token, etc.). Una vez guardes algo desde la pestaña **Settings**, `electron-store` (en `%APPDATA%/goblin-companion-settings`) manda sobre el `.env`.
 
@@ -52,9 +58,11 @@ goblin-companion/
 ├── src/              # renderer (React)
 │   ├── components/
 │   └── pages/
-├── public/fonts/     # mismas fuentes (woff2) que la web
-├── docs/plan.md      # plan técnico completo
-└── electron.vite.config.ts
+├── build/           # icon.png (generado por npm run icon)
+├── scripts/         # generate-icon.mjs
+├── release/         # salida de npm run dist (gitignore)
+├── docs/plan.md
+└── electron-builder.yml
 ```
 
 La companion **nunca** reimplementa el parseo de `.lua` ni la contabilidad: eso vive en Django. Solo orquesta (mirar archivos, llamar endpoints, mostrar estado).

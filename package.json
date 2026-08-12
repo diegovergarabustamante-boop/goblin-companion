@@ -4,14 +4,17 @@
   "description": "Companion de escritorio para Auction-house-Profit: sincroniza SavedVariables de WoW con Django sin clicks manuales.",
   "type": "module",
   "main": "./out/main/index.js",
-  "author": "",
+  "author": "Goblin Companion",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "icon": "node scripts/generate-icon.mjs",
+    "dist": "npm run icon && npm run typecheck && npm run build && electron-builder --win",
+    "dist:dir": "npm run icon && npm run build && electron-builder --win --dir"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

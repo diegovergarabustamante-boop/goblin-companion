@@ -339,7 +339,7 @@ Estimación: **~10–14 días de trabajo enfocado**, no “12 días con updater 
 | 5. Local server + Opción 3 web | 1–2 | Decoder + TSM + Carrito + Home | **Hecho** — `:8765/status|/sync` + paneles en Decoder/TSM/Cart + chip en navbar (Home) |
 | 6. Write TSM + backups rotatorios | 1–2 | Preview, confirm, N backups, restore UI | **Hecho** — backup-manager + `/backup` + Controls Write + endpoints companion `tsm-write` |
 | 7. Polish UI + logs + notifs | 1–2 | Se siente producto | **Hecho** — notifs nativas, autostart, first-run wizard, Activity Log polish |
-| 8. Installer `.exe` | 1 | Cuando lo anterior esté estable | Pendiente |
+| 8. Installer `.exe` | 1 | Cuando lo anterior esté estable | **Hecho** — electron-builder NSIS (`npm run dist` → `release/`) |
 
 **Definition of Done del MVP:**  
 Cierras WoW → web fresca en Decoder/Carrito → Opción 3 visible donde corresponde → Write con backup rotatorio → tray verde. UI al nivel del resto del producto.

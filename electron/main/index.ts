@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
 
 import { BrowserWindow, app, ipcMain, shell } from 'electron'
 
@@ -34,10 +35,30 @@ import { getWindowBounds, saveWindowBounds } from './window-state'
 
 loadDotEnv()
 
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.goblin.companion')
+}
+
 let mainWindow: BrowserWindow | null = null
+
+function resolveAppIcon(): string | undefined {
+  const candidates = [
+    join(import.meta.dirname, '../../build/icon.png'),
+    join(process.resourcesPath, 'icon.png')
+  ]
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) return candidate
+    } catch {
+      // ignore
+    }
+  }
+  return undefined
+}
 
 function createMainWindow(): BrowserWindow {
   const bounds = getWindowBounds()
+  const icon = resolveAppIcon()
 
   const window = new BrowserWindow({
     ...bounds,
@@ -46,6 +67,7 @@ function createMainWindow(): BrowserWindow {
     frame: false,
     show: false,
     backgroundColor: '#0b0f19',
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -53,7 +75,13 @@ function createMainWindow(): BrowserWindow {
     }
   })
 
-  window.on('ready-to-show', () => window.show())
+  window.on('ready-to-show', () => {
+    if (app.getLoginItemSettings().wasOpenedAsHidden) {
+      window.hide()
+    } else {
+      window.show()
+    }
+  })
 
   window.on('resized', () => saveWindowBounds(window.getBounds()))
   window.on('moved', () => saveWindowBounds(window.getBounds()))

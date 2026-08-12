@@ -22,7 +22,18 @@ const store = new Store<CompanionSettings>({
 })
 
 export function getSettings(): CompanionSettings {
-  return { ...DEFAULT_SETTINGS, ...store.store }
+  const merged = { ...DEFAULT_SETTINGS, ...store.store }
+
+  // Migración Stage 8: instalaciones previas ya configuradas no deben ver el wizard.
+  if (
+    !store.has('firstRunCompleted') &&
+    Boolean(merged.companionToken || merged.wowSavedVariablesPath)
+  ) {
+    merged.firstRunCompleted = true
+    store.set('firstRunCompleted', true)
+  }
+
+  return merged
 }
 
 export function updateSettings(patch: Partial<CompanionSettings>): CompanionSettings {

@@ -1,0 +1,28 @@
+appId: com.goblin.companion
+productName: Goblin Companion
+copyright: Copyright © Goblin Companion
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+  artifactName: GoblinCompanion-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Goblin Companion
+  uninstallDisplayName: Goblin Companion
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: GoblinCompanion-Portable-${version}.${ext}
