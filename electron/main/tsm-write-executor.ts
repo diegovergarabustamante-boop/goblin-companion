@@ -45,11 +45,19 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
   appendActivity('info', `✍️ Write TSM recibido (#${pending.writeId})`, `${pending.assignments.length} grupos`)
 
   try {
-    const tsmPath = settings.tsmLuaPath
-    if (!tsmPath || !fs.existsSync(tsmPath)) {
-      await completePendingWrite(settings, pending.writeId, false, undefined, 'No se encontró el archivo TradeSkillMaster.lua. Configurá la ruta en Settings.')
-      appendActivity('error', `❌ Write #${pending.writeId} fallido`, 'Archivo TSM no encontrado')
-      notify('Goblin Companion', '❌ Write TSM fallido: archivo no encontrado. Verificá la ruta en Settings.')
+    // Construir la ruta al TradeSkillMaster.lua desde la carpeta configurada
+    const tsmPath = resolveTsmLuaPath(settings)
+    if (!tsmPath) {
+      await completePendingWrite(settings, pending.writeId, false, undefined, 'No se encontró TradeSkillMaster.lua. Configurá la ruta de SavedVariables en Settings.')
+      appendActivity('error', `❌ Write #${pending.writeId} fallido`, 'Carpeta SavedVariables no configurada')
+      notify('Goblin Companion', '❌ Write TSM fallido: configurá la carpeta SavedVariables en Settings.')
+      return
+    }
+
+    if (!fs.existsSync(tsmPath)) {
+      await completePendingWrite(settings, pending.writeId, false, undefined, `Archivo no encontrado: ${tsmPath}`)
+      appendActivity('error', `❌ Write #${pending.writeId} fallido`, `No existe: ${path.basename(tsmPath)}`)
+      notify('Goblin Companion', `❌ Write TSM fallido: no se encontró ${path.basename(tsmPath)}`)
       return
     }
 
@@ -67,6 +75,29 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
   } finally {
     executing = false
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Construye la ruta completa al TradeSkillMaster.lua desde la carpeta
+ * SavedVariables configurada en Settings.
+ *
+ * wowSavedVariablesPath puede ser:
+ *   - La carpeta: D:\WoW\_retail_\WTF\Account\78125981#3\SavedVariables
+ *   - O ya el archivo completo: ...SavedVariables\TradeSkillMaster.lua
+ */
+function resolveTsmLuaPath(settings: { wowSavedVariablesPath: string }): string | null {
+  const raw = (settings.wowSavedVariablesPath ?? '').trim()
+  if (!raw) return null
+
+  // Si ya termina en .lua, asumimos que es el archivo directo
+  if (raw.toLowerCase().endsWith('.lua')) return raw
+
+  // Si es una carpeta, construimos la ruta
+  return path.join(raw, 'TradeSkillMaster.lua')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
