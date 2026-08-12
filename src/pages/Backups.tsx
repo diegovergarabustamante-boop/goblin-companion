@@ -28,7 +28,10 @@ export default function Backups(): JSX.Element {
     try {
       const result = await window.goblin.createBackup('snapshot')
       if (result.ok) {
-        setMessage(`✓ Snapshot creado: ${result.backup?.fileName}`)
+        const filesMsg = result.backup?.hasAppHelper
+          ? `${result.backup?.mainFileName} + ${result.backup?.appHelperFileName}`
+          : `${result.backup?.mainFileName}`
+        setMessage(`✓ Snapshot creado: ${filesMsg}`)
         reloadAll()
       } else {
         setMessage(`✗ Error: ${result.error}`)
@@ -42,7 +45,8 @@ export default function Backups(): JSX.Element {
 
   const handleRestore = async (b: BackupInfoDto): Promise<void> => {
     const title = b.kind === 'snapshot' ? 'snapshot' : 'backup'
-    const confirmMsg = `¿Restaurar ${title} de fecha ${new Date(b.createdAt).toLocaleString()}?\n\nSe restaurará ${b.fileName}${b.hasAppHelper ? ' y TradeSkillMaster_AppHelper.lua' : ''}.\nSe creará un snapshot de seguridad antes de sobreescribir. WoW debe estar cerrado.`
+    const filesList = b.hasAppHelper ? `${b.mainFileName} y ${b.appHelperFileName}` : `${b.mainFileName}`
+    const confirmMsg = `¿Restaurar ${title} de fecha ${new Date(b.createdAt).toLocaleString()}?\n\nSe restaurará ${filesList}.\nSe creará un snapshot de seguridad antes de sobreescribir. WoW debe estar cerrado.`
     if (!window.confirm(confirmMsg)) return
 
     setBusy(b.id)
@@ -62,10 +66,56 @@ export default function Backups(): JSX.Element {
     }
   }
 
+  const handleDelete = async (b: BackupInfoDto): Promise<void> => {
+    const title = b.kind === 'snapshot' ? 'snapshot' : 'backup'
+    const filesList = b.hasAppHelper ? `${b.mainFileName} + ${b.appHelperFileName}` : `${b.mainFileName}`
+    const confirmMsg = `¿Eliminar de forma permanente el ${title} de fecha ${new Date(b.createdAt).toLocaleString()}?\n\nArchivos a eliminar:\n- ${filesList}\n\nEsta acción NO se puede deshacer.`
+    if (!window.confirm(confirmMsg)) return
+
+    setBusy(`del_${b.id}`)
+    setMessage(null)
+    try {
+      const result = await window.goblin.deleteBackup(b.id, b.kind)
+      if (result.ok) {
+        setMessage(`✓ ${title.toUpperCase()} eliminado correctamente (${b.id})`)
+        reloadAll()
+      } else {
+        setMessage(`✗ Error al eliminar: ${result.error}`)
+      }
+    } catch (err) {
+      setMessage(`✗ Error: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const formatSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  }
+
+  const renderFilesColumn = (b: BackupInfoDto) => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.9em' }}>
+            {b.mainFileName || `backup-${b.id}.TradeSkillMaster.lua`}
+          </span>
+        </div>
+        {b.hasAppHelper ? (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.9em' }}>
+              {b.appHelperFileName || `backup-${b.id}.TradeSkillMaster_AppHelper.lua`}
+            </span>
+          </div>
+        ) : (
+          <span style={{ color: '#64748b', fontSize: '0.78em', fontStyle: 'italic' }}>
+            (Sin AppHelper.lua en SavedVariables al respaldar)
+          </span>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -111,7 +161,7 @@ export default function Backups(): JSX.Element {
               📸 Snapshots Manuales
             </h3>
             <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
-              Puntos de restauración manuales. Guardan copia de <code>TradeSkillMaster.lua</code> y <code>TradeSkillMaster_AppHelper.lua</code>.
+              Puntos de restauración manuales. Guardan copia exacta de <code>TradeSkillMaster.lua</code> y <code>TradeSkillMaster_AppHelper.lua</code>.
             </span>
           </div>
           <button
@@ -135,38 +185,40 @@ export default function Backups(): JSX.Element {
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#a78bfa' }}>
                   <th style={{ padding: '8px 12px' }}>Fecha y Hora</th>
-                  <th style={{ padding: '8px 12px' }}>Archivos respaldados</th>
+                  <th style={{ padding: '8px 12px' }}>Archivos creados</th>
                   <th style={{ padding: '8px 12px' }}>Tamaño Total</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acción</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {snapshots.map((s) => (
                   <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '10px 12px', color: '#f8fafc', fontWeight: 600 }}>
+                    <td style={{ padding: '10px 12px', color: '#f8fafc', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {new Date(s.createdAt).toLocaleString()}
                     </td>
-                    <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>
-                      <span style={{ background: 'rgba(167,139,250,0.15)', color: '#c084fc', padding: '2px 8px', borderRadius: '4px', marginRight: '6px' }}>
-                        TSM.lua
-                      </span>
-                      {s.hasAppHelper ? (
-                        <span style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px' }}>
-                          AppHelper.lua
-                        </span>
-                      ) : null}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#94a3b8' }}>{formatSize(s.sizeBytes)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        className="button secondary"
-                        disabled={busy === s.id}
-                        onClick={() => void handleRestore(s)}
-                        style={{ padding: '4px 12px', fontSize: '0.82em' }}
-                      >
-                        {busy === s.id ? '⏳ Restaurando…' : '🔄 Restaurar'}
-                      </button>
+                    <td style={{ padding: '10px 12px' }}>{renderFilesColumn(s)}</td>
+                    <td style={{ padding: '10px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatSize(s.sizeBytes)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={busy !== null}
+                          onClick={() => void handleRestore(s)}
+                          style={{ padding: '4px 12px', fontSize: '0.82em' }}
+                        >
+                          {busy === s.id ? '⏳ Restaurando…' : '🔄 Restaurar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={busy !== null}
+                          onClick={() => void handleDelete(s)}
+                          style={{ padding: '4px 10px', fontSize: '0.82em', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                        >
+                          {busy === `del_${s.id}` ? '⏳…' : '🗑️ Eliminar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -197,38 +249,40 @@ export default function Backups(): JSX.Element {
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#fbbf24' }}>
                   <th style={{ padding: '8px 12px' }}>Fecha y Hora</th>
-                  <th style={{ padding: '8px 12px' }}>Archivos respaldados</th>
+                  <th style={{ padding: '8px 12px' }}>Archivos creados</th>
                   <th style={{ padding: '8px 12px' }}>Tamaño Total</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acción</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {writeBackups.map((w) => (
                   <tr key={w.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '10px 12px', color: '#f8fafc', fontWeight: 600 }}>
+                    <td style={{ padding: '10px 12px', color: '#f8fafc', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {new Date(w.createdAt).toLocaleString()}
                     </td>
-                    <td style={{ padding: '10px 12px', color: '#cbd5e1' }}>
-                      <span style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', marginRight: '6px' }}>
-                        TSM.lua
-                      </span>
-                      {w.hasAppHelper ? (
-                        <span style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px' }}>
-                          AppHelper.lua
-                        </span>
-                      ) : null}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#94a3b8' }}>{formatSize(w.sizeBytes)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        className="button secondary"
-                        disabled={busy === w.id}
-                        onClick={() => void handleRestore(w)}
-                        style={{ padding: '4px 12px', fontSize: '0.82em' }}
-                      >
-                        {busy === w.id ? '⏳ Restaurando…' : '🔄 Restaurar'}
-                      </button>
+                    <td style={{ padding: '10px 12px' }}>{renderFilesColumn(w)}</td>
+                    <td style={{ padding: '10px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatSize(w.sizeBytes)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={busy !== null}
+                          onClick={() => void handleRestore(w)}
+                          style={{ padding: '4px 12px', fontSize: '0.82em' }}
+                        >
+                          {busy === w.id ? '⏳ Restaurando…' : '🔄 Restaurar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={busy !== null}
+                          onClick={() => void handleDelete(w)}
+                          style={{ padding: '4px 10px', fontSize: '0.82em', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                        >
+                          {busy === `del_${w.id}` ? '⏳…' : '🗑️ Eliminar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -14,6 +14,7 @@ export const IpcChannel = {
   ListBackups: 'backups:list',
   CreateBackup: 'backups:create',
   RestoreBackup: 'backups:restore',
+  DeleteBackup: 'backups:delete',
   OpenBackupsFolder: 'backups:open-folder',
   PreviewTsmWrite: 'tsm:preview-write',
   ConfirmTsmWrite: 'tsm:confirm-write',

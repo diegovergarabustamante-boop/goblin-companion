@@ -16,6 +16,7 @@ import {
 import { isQuittingApp, markQuitting } from './app-state'
 import {
   createRotatingBackup,
+  deleteBackup,
   listBackups,
   openBackupsFolder,
   restoreBackup
@@ -216,6 +217,7 @@ function registerIpcHandlers(): void {
     }
   })
   ipcMain.handle(IpcChannel.RestoreBackup, (_event, backupId: string, kind?: 'write' | 'snapshot') => restoreBackup(backupId, kind))
+  ipcMain.handle(IpcChannel.DeleteBackup, (_event, backupId: string, kind?: 'write' | 'snapshot') => deleteBackup(backupId, kind))
   ipcMain.handle(IpcChannel.OpenBackupsFolder, () => {
     openBackupsFolder()
   })

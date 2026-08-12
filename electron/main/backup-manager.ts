@@ -4,7 +4,7 @@ import { basename, dirname, join } from 'node:path'
 import { app, shell } from 'electron'
 
 import { appendActivity } from './activity-log'
-import { resolveLuaPath } from './paths'
+import { normalizeSavedVariablesPath, resolveLuaPath } from './paths'
 import { getSettings } from './settings'
 
 export type BackupKind = 'write' | 'snapshot'
@@ -14,6 +14,8 @@ export interface BackupInfo {
   kind: BackupKind
   fileName: string
   filePath: string
+  mainFileName: string
+  appHelperFileName?: string
   hasMain: boolean
   hasAppHelper: boolean
   createdAt: string
@@ -29,9 +31,10 @@ function backupsRoot(kind: BackupKind): string {
 
 export function parseBackupFilename(name: string): { timestamp: string; isAppHelper: boolean } | null {
   // Format: backup-20260812T180000.TradeSkillMaster.lua or backup-20260812T180000.TradeSkillMaster_AppHelper.lua
-  const mNew = name.match(/^backup-(\d{8}T\d{6})\.TradeSkillMaster(_AppHelper)?\.lua$/i)
+  const mNew = name.match(/^backup-([0-9A-Za-z_-]+)\.(TradeSkillMaster(?:_AppHelper)?\.lua)$/i)
   if (mNew) {
-    return { timestamp: mNew[1], isAppHelper: !!mNew[2] }
+    const isAppHelper = mNew[2].toLowerCase().includes('apphelper')
+    return { timestamp: mNew[1], isAppHelper }
   }
 
   // Legacy format: backup_1_20260812T141500.lua OR backup_20260812T141500.lua
@@ -91,6 +94,8 @@ function listBackupsInDir(dir: string, defaultKind: BackupKind): BackupInfo[] {
       kind: defaultKind,
       fileName: mainFile,
       filePath: mainPath,
+      mainFileName: mainFile,
+      appHelperFileName: entry.helperFile,
       hasMain: !!entry.mainPath,
       hasAppHelper: !!entry.helperPath,
       createdAt: iso,
@@ -107,11 +112,9 @@ export function listBackups(filterKind?: BackupKind): BackupInfo[] {
     return listBackupsInDir(backupsRoot(filterKind), filterKind)
   }
 
-  // Combine write and snapshot backups
   const writeBackups = listBackupsInDir(backupsRoot('write'), 'write')
   const snapshotBackups = listBackupsInDir(backupsRoot('snapshot'), 'snapshot')
 
-  // Also read legacy root dir for any older files
   const legacyDir = join(app.getPath('userData'), 'backups', 'TradeSkillMaster')
   const legacyBackups = listBackupsInDir(legacyDir, 'write')
 
@@ -143,7 +146,17 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
   }
 
   const savedVarDir = dirname(mainSrc)
-  const appHelperSrc = join(savedVarDir, 'TradeSkillMaster_AppHelper.lua')
+  const candidate1 = join(savedVarDir, 'TradeSkillMaster_AppHelper.lua')
+  const candidate2 = getSettings().wowSavedVariablesPath
+    ? join(normalizeSavedVariablesPath(getSettings().wowSavedVariablesPath) || '', 'TradeSkillMaster_AppHelper.lua')
+    : null
+
+  let appHelperSrc: string | null = null
+  if (existsSync(candidate1)) {
+    appHelperSrc = candidate1
+  } else if (candidate2 && existsSync(candidate2)) {
+    appHelperSrc = candidate2
+  }
 
   const dir = backupsRoot(kind)
   const ts = stamp()
@@ -152,16 +165,20 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
   const destMainPath = join(dir, destMainName)
   copyFileSync(mainSrc, destMainPath)
 
+  let destHelperName: string | undefined
+  let destHelperPath: string | undefined
   let hasAppHelper = false
-  if (existsSync(appHelperSrc)) {
-    const destHelperName = `backup-${ts}.TradeSkillMaster_AppHelper.lua`
-    const destHelperPath = join(dir, destHelperName)
+
+  if (appHelperSrc) {
+    destHelperName = `backup-${ts}.TradeSkillMaster_AppHelper.lua`
+    destHelperPath = join(dir, destHelperName)
     copyFileSync(appHelperSrc, destHelperPath)
     hasAppHelper = true
   }
 
   const kindLabel = kind === 'snapshot' ? 'Snapshot manual' : 'Backup por escritura'
-  appendActivity('success', `${kindLabel} creado`, destMainName)
+  const logDetails = hasAppHelper ? `${destMainName} + ${destHelperName}` : destMainName
+  appendActivity('success', `${kindLabel} creado`, logDetails)
 
   // Rotate Write backups strictly obeying backupCount setting
   if (kind === 'write') {
@@ -169,14 +186,7 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
     const allWrites = listBackupsInDir(dir, 'write')
     for (const old of allWrites.slice(max)) {
       try {
-        const oldMain = join(dir, `backup-${old.id}.TradeSkillMaster.lua`)
-        const oldHelper = join(dir, `backup-${old.id}.TradeSkillMaster_AppHelper.lua`)
-        const oldLegacy = join(dir, old.fileName)
-
-        if (existsSync(oldMain)) unlinkSync(oldMain)
-        if (existsSync(oldHelper)) unlinkSync(oldHelper)
-        if (existsSync(oldLegacy)) unlinkSync(oldLegacy)
-
+        deleteBackup(old.id, 'write')
         appendActivity('info', 'Write backup rotado (eliminado)', old.fileName)
       } catch {
         // ignore
@@ -193,10 +203,49 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
     kind,
     fileName: destMainName,
     filePath: destMainPath,
+    mainFileName: destMainName,
+    appHelperFileName: destHelperName,
     hasMain: true,
     hasAppHelper,
     createdAt: new Date().toISOString(),
-    sizeBytes: statSync(destMainPath).size
+    sizeBytes: statSync(destMainPath).size + (destHelperPath ? statSync(destHelperPath).size : 0)
+  }
+}
+
+/**
+ * Delete a backup set by ID (removes both TradeSkillMaster.lua and AppHelper.lua for that timestamp).
+ */
+export function deleteBackup(backupId: string, kind?: BackupKind): { ok: true } | { ok: false; error: string } {
+  try {
+    const kinds: BackupKind[] = kind ? [kind] : ['write', 'snapshot']
+    let deletedCount = 0
+
+    for (const k of kinds) {
+      const dir = backupsRoot(k)
+      if (!existsSync(dir)) continue
+
+      for (const file of readdirSync(dir)) {
+        const parsed = parseBackupFilename(file)
+        if (parsed && parsed.timestamp === backupId) {
+          const filePath = join(dir, file)
+          if (existsSync(filePath)) {
+            unlinkSync(filePath)
+            deletedCount++
+          }
+        }
+      }
+    }
+
+    if (deletedCount === 0) {
+      return { ok: false, error: 'Backup no encontrado para eliminar' }
+    }
+
+    appendActivity('info', 'Backup eliminado', backupId)
+    return { ok: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    appendActivity('error', 'Error al eliminar backup', msg)
+    return { ok: false, error: msg }
   }
 }
 
@@ -219,7 +268,6 @@ export function restoreBackup(backupId: string, kind?: BackupKind): { ok: true; 
   const backupMainPath = join(dir, `backup-${chosen.id}.TradeSkillMaster.lua`)
   const backupHelperPath = join(dir, `backup-${chosen.id}.TradeSkillMaster_AppHelper.lua`)
 
-  // Fallback to legacy file path
   const actualMainPath = existsSync(backupMainPath) ? backupMainPath : chosen.filePath
 
   try {

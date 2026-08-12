@@ -20,6 +20,8 @@ export interface BackupInfoDto {
   kind: 'write' | 'snapshot'
   fileName: string
   filePath: string
+  mainFileName: string
+  appHelperFileName?: string
   hasMain: boolean
   hasAppHelper: boolean
   createdAt: string
@@ -69,6 +71,9 @@ const goblinApi = {
 
   restoreBackup: (backupId: string, kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke(IpcChannel.RestoreBackup, backupId, kind),
+
+  deleteBackup: (backupId: string, kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.DeleteBackup, backupId, kind),
 
   openBackupsFolder: (): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenBackupsFolder),
 
