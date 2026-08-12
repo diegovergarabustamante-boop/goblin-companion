@@ -19,12 +19,16 @@ function Controls(): JSX.Element {
     void refreshBackups()
   }, [refreshBackups])
 
-  async function run(kind: 'inventory' | 'accounting'): Promise<void> {
-    setBusy(kind)
-    setMessage(null)
-    const result = kind === 'inventory' ? await window.goblin.syncInventory() : await window.goblin.syncAccounting()
+  async function runAll(): Promise<void> {
+    setBusy('inventory')
+    setMessage('Sincronizando inventario (1/2)…')
+    const invRes = await window.goblin.syncInventory()
+    setBusy('accounting')
+    setMessage('Sincronizando accounting (2/2)…')
+    const accRes = await window.goblin.syncAccounting()
     setBusy(null)
-    setMessage(result.ok ? `✓ Sync ${kind} OK` : `✗ ${result.error ?? 'falló'}`)
+    const ok = invRes.ok && accRes.ok
+    setMessage(ok ? '✓ Sincronización completada (inventario + accounting)' : `✗ ${invRes.error || accRes.error || 'falló'}`)
   }
 
   async function handlePreviewWrite(): Promise<void> {
@@ -82,13 +86,13 @@ function Controls(): JSX.Element {
       <section className="glass-panel">
         <h2>Sync manual</h2>
         <div className="button-row">
-          <button type="button" className="btn" disabled={busy !== null} onClick={() => void run('inventory')}>
-            {busy === 'inventory' ? 'Sincronizando…' : 'Sync inventario'}
-          </button>
-          <button type="button" className="btn" disabled={busy !== null} onClick={() => void run('accounting')}>
-            {busy === 'accounting' ? 'Sincronizando…' : 'Sync accounting'}
+          <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void runAll()}>
+            {busy !== null ? '⏳ Sincronizando (inventario + accounting)…' : 'Forzar sincronización (inventario + accounting)'}
           </button>
         </div>
+        <p className="page__note">
+          Sync lee y sincroniza automáticamente TradeSkillMaster.lua (inventario + historial accounting).
+        </p>
       </section>
 
       <section className="glass-panel">

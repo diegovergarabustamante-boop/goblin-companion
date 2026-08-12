@@ -40,6 +40,7 @@ export interface CompanionStatusSnapshot {
   lastAccountingSyncAt: string | null
   queueLength: number
   syncing: boolean
+  syncStep?: string | null
 }
 
 /** Resultado de golpear `GET /api/companion/ping/` (botón "Probar conexión"). */

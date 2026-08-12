@@ -4,6 +4,7 @@ import { basename, join } from 'node:path'
 import chokidar, { type FSWatcher } from 'chokidar'
 
 import { appendActivity } from './activity-log'
+import { normalizeSavedVariablesPath } from './path-utils'
 import { getSettings } from './settings'
 
 export type WatchedKind = 'inventory' | 'accounting'
@@ -15,8 +16,14 @@ export interface WatchedFileEvent {
 
 type WatchHandler = (event: WatchedFileEvent) => void
 
-const INVENTORY_FILES = ['TradeSkillMaster.lua'] as const
-const ACCOUNTING_FILES = ['TradeSkillMaster_Accounting.lua'] as const
+/**
+ * Archivos a vigilar y qué syncs disparan.
+ * Inventario + accounting usan el mismo TradeSkillMaster.lua (como TSM Analyzer).
+ * AppHelper es flujo Decoder en la web, no de la companion.
+ */
+const WATCH_SPECS: Array<{ fileName: string; kinds: WatchedKind[] }> = [
+  { fileName: 'TradeSkillMaster.lua', kinds: ['inventory', 'accounting'] }
+]
 
 /** Tamaño mínimo razonable (bytes) — un .lua vacío/casi vacío no se sincroniza. */
 const MIN_FILE_BYTES = 64
@@ -24,15 +31,11 @@ const MIN_FILE_BYTES = 64
 let watcher: FSWatcher | null = null
 let onChange: WatchHandler | null = null
 
-function resolveWatchTargets(savedVariablesPath: string): Array<{ kind: WatchedKind; filePath: string }> {
-  const targets: Array<{ kind: WatchedKind; filePath: string }> = []
-  for (const name of INVENTORY_FILES) {
-    targets.push({ kind: 'inventory', filePath: join(savedVariablesPath, name) })
-  }
-  for (const name of ACCOUNTING_FILES) {
-    targets.push({ kind: 'accounting', filePath: join(savedVariablesPath, name) })
-  }
-  return targets
+function resolveWatchTargets(savedVariablesPath: string): Array<{ kinds: WatchedKind[]; filePath: string }> {
+  return WATCH_SPECS.map((spec) => ({
+    kinds: spec.kinds,
+    filePath: join(savedVariablesPath, spec.fileName)
+  }))
 }
 
 export function validateLuaFile(filePath: string): { ok: true } | { ok: false; reason: string } {
@@ -56,18 +59,25 @@ export function startWatcher(handler: WatchHandler): void {
     appendActivity('info', 'Watcher en pausa (auto-sync apagado)')
     return
   }
-  if (!wowSavedVariablesPath) {
+  const folder = normalizeSavedVariablesPath(wowSavedVariablesPath)
+  if (!folder) {
     appendActivity('warn', 'Watcher no iniciado: falta la carpeta SavedVariables en Settings')
     return
   }
-  if (!existsSync(wowSavedVariablesPath)) {
-    appendActivity('error', 'Carpeta SavedVariables no encontrada', wowSavedVariablesPath)
+  if (!existsSync(folder)) {
+    appendActivity('error', 'Carpeta SavedVariables no encontrada', folder)
     return
   }
 
   const stabilityMs = Number(process.env.WATCHER_STABILITY_MS ?? 2000)
-  const targets = resolveWatchTargets(wowSavedVariablesPath)
+  const targets = resolveWatchTargets(folder).filter((t) => existsSync(t.filePath))
+  if (targets.length === 0) {
+    appendActivity('error', 'No hay TradeSkillMaster.lua en SavedVariables', folder)
+    return
+  }
+
   const paths = targets.map((t) => t.filePath)
+  const kindsByPath = new Map(targets.map((t) => [t.filePath.toLowerCase(), t.kinds]))
 
   watcher = chokidar.watch(paths, {
     ignoreInitial: true,
@@ -77,11 +87,9 @@ export function startWatcher(handler: WatchHandler): void {
     }
   })
 
-  const kindByPath = new Map(targets.map((t) => [t.filePath.toLowerCase(), t.kind]))
-
   watcher.on('change', (changedPath) => {
-    const kind = kindByPath.get(changedPath.toLowerCase())
-    if (!kind || !onChange) return
+    const kinds = kindsByPath.get(changedPath.toLowerCase())
+    if (!kinds?.length || !onChange) return
 
     const validation = validateLuaFile(changedPath)
     if (!validation.ok) {
@@ -89,8 +97,10 @@ export function startWatcher(handler: WatchHandler): void {
       return
     }
 
-    appendActivity('info', `Archivo estable: ${basename(changedPath)}`, kind)
-    onChange({ kind, filePath: changedPath })
+    appendActivity('info', `Archivo estable: ${basename(changedPath)}`, kinds.join('+'))
+    for (const kind of kinds) {
+      onChange({ kind, filePath: changedPath })
+    }
   })
 
   watcher.on('error', (error) => {
@@ -100,7 +110,7 @@ export function startWatcher(handler: WatchHandler): void {
   appendActivity(
     'success',
     'Watcher activo',
-    targets.map((t) => basename(t.filePath)).join(', ')
+    targets.map((t) => `${basename(t.filePath)} → ${t.kinds.join('+')}`).join(', ')
   )
 }
 

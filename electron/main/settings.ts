@@ -1,6 +1,7 @@
 import Store from 'electron-store'
 
 import { CompanionSettings, DEFAULT_SETTINGS } from '../../shared/settings'
+import { normalizeSavedVariablesPath } from './path-utils'
 
 /**
  * Prioridad de configuración (plan sección 10): UI Settings > .env > defaults.
@@ -12,6 +13,7 @@ function envDefaults(): Partial<CompanionSettings> {
   return {
     djangoUrl: env.DJANGO_URL ?? DEFAULT_SETTINGS.djangoUrl,
     companionToken: env.COMPANION_TOKEN ?? DEFAULT_SETTINGS.companionToken,
+    wowSavedVariablesPath: env.WOW_SAVED_VARIABLES_PATH ?? DEFAULT_SETTINGS.wowSavedVariablesPath,
     localServerPort: env.LOCAL_SERVER_PORT ? Number(env.LOCAL_SERVER_PORT) : DEFAULT_SETTINGS.localServerPort
   }
 }
@@ -37,6 +39,10 @@ export function getSettings(): CompanionSettings {
 }
 
 export function updateSettings(patch: Partial<CompanionSettings>): CompanionSettings {
-  store.set({ ...store.store, ...patch })
+  const next = { ...store.store, ...patch }
+  if (typeof next.wowSavedVariablesPath === 'string') {
+    next.wowSavedVariablesPath = normalizeSavedVariablesPath(next.wowSavedVariablesPath)
+  }
+  store.set(next)
   return getSettings()
 }

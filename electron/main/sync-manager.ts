@@ -29,6 +29,7 @@ interface SyncState {
   lastError: string | null
   djangoReachable: boolean | null
   syncing: boolean
+  syncStep: string | null
   lastInventorySyncAt: string | null
   lastAccountingSyncAt: string | null
   queue: QueuedSync[]
@@ -39,6 +40,7 @@ const state: SyncState = {
   lastError: null,
   djangoReachable: null,
   syncing: false,
+  syncStep: null,
   lastInventorySyncAt: null,
   lastAccountingSyncAt: null,
   queue: []
@@ -70,7 +72,8 @@ export function getSyncSnapshot(): CompanionStatusSnapshot {
     lastInventorySyncAt: state.lastInventorySyncAt,
     lastAccountingSyncAt: state.lastAccountingSyncAt,
     queueLength: state.queue.length,
-    syncing: state.syncing
+    syncing: state.syncing,
+    syncStep: state.syncStep
   }
 }
 
@@ -144,6 +147,7 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
   }
 
   state.syncing = true
+  state.syncStep = kind === 'inventory' ? 'Sincronizando inventario…' : 'Sincronizando accounting…'
   emitStatus()
   appendActivity('info', `Sync ${kind} (${reason})…`, basenameSafe(filePath))
 
@@ -151,6 +155,7 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
     kind === 'inventory' ? await syncInventory(settings, filePath) : await syncAccounting(settings, filePath)
 
   state.syncing = false
+  state.syncStep = null
 
   if (!result.ok) {
     state.lastError = result.error ?? 'sync falló'

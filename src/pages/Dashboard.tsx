@@ -66,13 +66,22 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
       </div>
 
       <div className="button-row">
-        <button type="button" className="btn btn--primary" onClick={() => void forceSync()}>
-          Forzar sync ahora
+        <button type="button" className="btn btn--primary" disabled={Boolean(status?.syncing)} onClick={() => void forceSync()}>
+          {status?.syncing ? '⏳ Sincronizando (inventario + accounting)…' : 'Forzar sincronización ahora'}
         </button>
       </div>
+
+      {status?.syncing ? (
+        <div className="activity-item activity-item--info" style={{ marginTop: 12, padding: '10px 14px' }}>
+          <span className="activity-item__message">
+            🔄 {status.syncStep || 'Sincronizando datos en tiempo real…'}
+          </span>
+        </div>
+      ) : null}
       <p className="page__note">
-        Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la web se actualiza sola. El [×] de la
-        ventana deja la companion en el tray.
+        Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la companion lee el `.lua`.
+        El carrito no se llena solo: en Decoder configurá chars/warbank/guilds y usá Apply, o
+        “Load from Companion” en Cart/Arbitrage.
       </p>
     </div>
   )

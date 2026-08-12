@@ -95,7 +95,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
                 type="text"
                 value={draft.wowSavedVariablesPath}
                 onChange={(e) => patch({ wowSavedVariablesPath: e.target.value })}
-                placeholder="C:\Program Files (x86)\World of Warcraft\_retail_\WTF\Account\…\SavedVariables"
+                placeholder="…\SavedVariables  (carpeta, no el archivo .lua)"
               />
             </label>
           </>

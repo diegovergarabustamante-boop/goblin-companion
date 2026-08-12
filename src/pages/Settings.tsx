@@ -89,12 +89,12 @@ function Settings(): JSX.Element {
       <section className="glass-panel">
         <h2>WoW</h2>
         <label className="field">
-          <span>Carpeta SavedVariables</span>
+          <span>Carpeta SavedVariables (no el archivo .lua)</span>
           <input
             type="text"
             value={settings.wowSavedVariablesPath}
             onChange={(event) => patch({ wowSavedVariablesPath: event.target.value })}
-            placeholder="…/World of Warcraft/_retail_/WTF/Account/…/SavedVariables"
+            placeholder="…/SavedVariables  (carpeta, no el .lua)"
           />
         </label>
         <label className="checkbox-field">

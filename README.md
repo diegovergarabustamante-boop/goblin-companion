@@ -16,7 +16,7 @@ Lo que ya funciona:
 - 4 tabs: Dashboard, Activity Log, Controls, Settings (+ tab "P&L — Coming soon" deshabilitado).
 - Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
 - **Auth companion contra Django** (Etapa 2).
-- **Watcher + sync a DB** (Etapa 3): inventario → carrito; accounting → ItemSellStats.
+- **Watcher + sync a DB** (Etapa 3): inventario + accounting desde `TradeSkillMaster.lua` (mismo archivo que usa TSM Analyzer; AppHelper es solo Decoder web).
 - **Connection monitor + cola** (Etapa 4): reintenta syncs pendientes cuando Django vuelve.
 - **Local server + Opción 3** (Etapa 5): `127.0.0.1:8765/status` y `/sync`; paneles en Decoder/TSM/Cart y chip en navbar.
 - **Write TSM + backups rotatorios** (Etapa 6).

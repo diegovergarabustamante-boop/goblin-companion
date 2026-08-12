@@ -33,6 +33,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 function statusPayload(): Record<string, unknown> {
   const snap = getSyncSnapshot()
   const settings = getSettings()
+  const folder = settings.wowSavedVariablesPath?.trim() || ''
   return {
     ok: true,
     companion: true,
@@ -42,12 +43,14 @@ function statusPayload(): Record<string, unknown> {
     django_reachable: snap.djangoReachable,
     watcher_running: isWatcherRunning(),
     syncing: snap.syncing,
+    sync_step: snap.syncStep,
     queue_length: snap.queueLength,
     last_sync_at: snap.lastSyncAt,
     last_inventory_sync: snap.lastInventorySyncAt,
     last_accounting_sync: snap.lastAccountingSyncAt,
     django_url: settings.djangoUrl,
-    saved_variables_configured: Boolean(settings.wowSavedVariablesPath),
+    saved_variables_configured: Boolean(folder),
+    saved_variables_path: folder || null,
     backup_count: listBackups().length
   }
 }
