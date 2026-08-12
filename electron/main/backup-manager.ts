@@ -8,16 +8,15 @@ import { normalizeSavedVariablesPath, resolveLuaPath } from './paths'
 import { getSettings } from './settings'
 
 export type BackupKind = 'write' | 'snapshot'
+export type BackupFileType = 'main' | 'apphelper'
 
 export interface BackupInfo {
   id: string
   kind: BackupKind
+  fileType: BackupFileType
   fileName: string
   filePath: string
-  mainFileName: string
-  appHelperFileName?: string
-  hasMain: boolean
-  hasAppHelper: boolean
+  targetFilename: string
   createdAt: string
   sizeBytes: number
 }
@@ -29,18 +28,27 @@ function backupsRoot(kind: BackupKind): string {
   return dir
 }
 
-export function parseBackupFilename(name: string): { timestamp: string; isAppHelper: boolean } | null {
+export function parseBackupFilename(name: string): { timestamp: string; fileType: BackupFileType; targetFilename: string } | null {
   // Format: backup-20260812T180000.TradeSkillMaster.lua or backup-20260812T180000.TradeSkillMaster_AppHelper.lua
   const mNew = name.match(/^backup-([0-9A-Za-z_-]+)\.(TradeSkillMaster(?:_AppHelper)?\.lua)$/i)
   if (mNew) {
-    const isAppHelper = mNew[2].toLowerCase().includes('apphelper')
-    return { timestamp: mNew[1], isAppHelper }
+    const targetFilename = mNew[2]
+    const isAppHelper = targetFilename.toLowerCase().includes('apphelper')
+    return {
+      timestamp: mNew[1],
+      fileType: isAppHelper ? 'apphelper' : 'main',
+      targetFilename
+    }
   }
 
   // Legacy format: backup_1_20260812T141500.lua OR backup_20260812T141500.lua
   const mOld = name.match(/^backup_(?:(\d+)_)?(\d{8}T\d{6})\.lua$/i)
   if (mOld) {
-    return { timestamp: mOld[2], isAppHelper: false }
+    return {
+      timestamp: mOld[2],
+      fileType: 'main',
+      targetFilename: 'TradeSkillMaster.lua'
+    }
   }
 
   return null
@@ -54,7 +62,7 @@ function stamp(): string {
 
 function listBackupsInDir(dir: string, defaultKind: BackupKind): BackupInfo[] {
   if (!existsSync(dir)) return []
-  const map = new Map<string, { mainFile?: string; mainPath?: string; helperFile?: string; helperPath?: string; totalSize: number; timestamp: string }>()
+  const entries: BackupInfo[] = []
 
   for (const name of readdirSync(dir)) {
     const parsed = parseBackupFilename(name)
@@ -64,47 +72,26 @@ function listBackupsInDir(dir: string, defaultKind: BackupKind): BackupInfo[] {
       const st = statSync(filePath)
       if (!st.isFile()) continue
 
-      let entry = map.get(parsed.timestamp)
-      if (!entry) {
-        entry = { totalSize: 0, timestamp: parsed.timestamp }
-        map.set(parsed.timestamp, entry)
-      }
+      const ts = parsed.timestamp
+      const iso = `${ts.slice(0, 4)}-${ts.slice(4, 6)}-${ts.slice(6, 8)}T${ts.slice(9, 11)}:${ts.slice(11, 13)}:${ts.slice(13, 15)}.000Z`
 
-      entry.totalSize += st.size
-      if (parsed.isAppHelper) {
-        entry.helperFile = name
-        entry.helperPath = filePath
-      } else {
-        entry.mainFile = name
-        entry.mainPath = filePath
-      }
+      entries.push({
+        id: name,
+        kind: defaultKind,
+        fileType: parsed.fileType,
+        fileName: name,
+        filePath,
+        targetFilename: parsed.targetFilename,
+        createdAt: iso,
+        sizeBytes: st.size
+      })
     } catch {
-      // ignore
+      // ignore unreadable
     }
   }
 
-  const result: BackupInfo[] = []
-  for (const [ts, entry] of map.entries()) {
-    const iso = `${ts.slice(0, 4)}-${ts.slice(4, 6)}-${ts.slice(6, 8)}T${ts.slice(9, 11)}:${ts.slice(11, 13)}:${ts.slice(13, 15)}.000Z`
-    const mainFile = entry.mainFile || `backup-${ts}.TradeSkillMaster.lua`
-    const mainPath = entry.mainPath || join(dir, mainFile)
-
-    result.push({
-      id: ts,
-      kind: defaultKind,
-      fileName: mainFile,
-      filePath: mainPath,
-      mainFileName: mainFile,
-      appHelperFileName: entry.helperFile,
-      hasMain: !!entry.mainPath,
-      hasAppHelper: !!entry.helperPath,
-      createdAt: iso,
-      sizeBytes: entry.totalSize
-    })
-  }
-
-  result.sort((a, b) => b.id.localeCompare(a.id))
-  return result
+  entries.sort((a, b) => b.fileName.localeCompare(a.fileName))
+  return entries
 }
 
 export function listBackups(filterKind?: BackupKind): BackupInfo[] {
@@ -123,23 +110,20 @@ export function listBackups(filterKind?: BackupKind): BackupInfo[] {
   const unique: BackupInfo[] = []
 
   for (const b of combined) {
-    const key = `${b.kind}_${b.id}`
-    if (!seen.has(key)) {
-      seen.add(key)
+    if (!seen.has(b.filePath)) {
+      seen.add(b.filePath)
       unique.push(b)
     }
   }
 
-  unique.sort((a, b) => b.id.localeCompare(a.id))
+  unique.sort((a, b) => b.fileName.localeCompare(a.fileName))
   return unique
 }
 
 /**
- * Creates a backup set (TradeSkillMaster.lua AND TradeSkillMaster_AppHelper.lua if present).
- * - 'write': Rotating backup before writing TSM groups (capped by backupCount in Settings).
- * - 'snapshot': Manual persistent snapshot.
+ * Creates backup files for TradeSkillMaster.lua AND TradeSkillMaster_AppHelper.lua (if present).
  */
-export function createRotatingBackup(kind: BackupKind = 'write', customSourcePath?: string): BackupInfo {
+export function createRotatingBackup(kind: BackupKind = 'write', customSourcePath?: string): BackupInfo[] {
   const mainSrc = customSourcePath ?? resolveLuaPath('inventory')
   if (!mainSrc || !existsSync(mainSrc)) {
     throw new Error('TradeSkillMaster.lua no encontrado — configurá SavedVariables')
@@ -160,87 +144,118 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
 
   const dir = backupsRoot(kind)
   const ts = stamp()
+  const createdItems: BackupInfo[] = []
 
+  // 1. Main TSM.lua
   const destMainName = `backup-${ts}.TradeSkillMaster.lua`
   const destMainPath = join(dir, destMainName)
   copyFileSync(mainSrc, destMainPath)
+  const mainStat = statSync(destMainPath)
+  createdItems.push({
+    id: destMainName,
+    kind,
+    fileType: 'main',
+    fileName: destMainName,
+    filePath: destMainPath,
+    targetFilename: 'TradeSkillMaster.lua',
+    createdAt: new Date().toISOString(),
+    sizeBytes: mainStat.size
+  })
 
-  let destHelperName: string | undefined
-  let destHelperPath: string | undefined
-  let hasAppHelper = false
-
+  // 2. AppHelper.lua
   if (appHelperSrc) {
-    destHelperName = `backup-${ts}.TradeSkillMaster_AppHelper.lua`
-    destHelperPath = join(dir, destHelperName)
+    const destHelperName = `backup-${ts}.TradeSkillMaster_AppHelper.lua`
+    const destHelperPath = join(dir, destHelperName)
     copyFileSync(appHelperSrc, destHelperPath)
-    hasAppHelper = true
+    const helperStat = statSync(destHelperPath)
+    createdItems.push({
+      id: destHelperName,
+      kind,
+      fileType: 'apphelper',
+      fileName: destHelperName,
+      filePath: destHelperPath,
+      targetFilename: 'TradeSkillMaster_AppHelper.lua',
+      createdAt: new Date().toISOString(),
+      sizeBytes: helperStat.size
+    })
   }
 
   const kindLabel = kind === 'snapshot' ? 'Snapshot manual' : 'Backup por escritura'
-  const logDetails = hasAppHelper ? `${destMainName} + ${destHelperName}` : destMainName
-  appendActivity('success', `${kindLabel} creado`, logDetails)
+  const logMessage = createdItems.map((i) => i.fileName).join(' + ')
+  appendActivity('success', `${kindLabel} creado`, logMessage)
 
   // Rotate Write backups strictly obeying backupCount setting
   if (kind === 'write') {
-    const max = Math.min(10, Math.max(1, getSettings().backupCount || 3))
+    const maxCount = Math.min(10, Math.max(1, getSettings().backupCount || 3))
     const allWrites = listBackupsInDir(dir, 'write')
-    for (const old of allWrites.slice(max)) {
-      try {
-        deleteBackup(old.id, 'write')
-        appendActivity('info', 'Write backup rotado (eliminado)', old.fileName)
-      } catch {
-        // ignore
+
+    // Group by timestamp to count backup sessions
+    const sessions = new Map<string, BackupInfo[]>()
+    for (const item of allWrites) {
+      const parsed = parseBackupFilename(item.fileName)
+      const tsKey = parsed ? parsed.timestamp : item.id
+      let list = sessions.get(tsKey)
+      if (!list) {
+        list = []
+        sessions.set(tsKey, list)
       }
+      list.push(item)
     }
-  }
 
-  const createdList = listBackupsInDir(dir, kind)
-  const created = createdList.find((b) => b.id === ts)
-  if (created) return created
+    const sortedTimestamps = Array.from(sessions.keys()).sort((a, b) => b.localeCompare(a))
 
-  return {
-    id: ts,
-    kind,
-    fileName: destMainName,
-    filePath: destMainPath,
-    mainFileName: destMainName,
-    appHelperFileName: destHelperName,
-    hasMain: true,
-    hasAppHelper,
-    createdAt: new Date().toISOString(),
-    sizeBytes: statSync(destMainPath).size + (destHelperPath ? statSync(destHelperPath).size : 0)
-  }
-}
-
-/**
- * Delete a backup set by ID (removes both TradeSkillMaster.lua and AppHelper.lua for that timestamp).
- */
-export function deleteBackup(backupId: string, kind?: BackupKind): { ok: true } | { ok: false; error: string } {
-  try {
-    const kinds: BackupKind[] = kind ? [kind] : ['write', 'snapshot']
-    let deletedCount = 0
-
-    for (const k of kinds) {
-      const dir = backupsRoot(k)
-      if (!existsSync(dir)) continue
-
-      for (const file of readdirSync(dir)) {
-        const parsed = parseBackupFilename(file)
-        if (parsed && parsed.timestamp === backupId) {
-          const filePath = join(dir, file)
-          if (existsSync(filePath)) {
-            unlinkSync(filePath)
-            deletedCount++
+    // Remove older backup sessions exceeding maxCount limit
+    if (sortedTimestamps.length > maxCount) {
+      const oldTimestamps = sortedTimestamps.slice(maxCount)
+      for (const oldTs of oldTimestamps) {
+        const itemsToDelete = sessions.get(oldTs) || []
+        for (const item of itemsToDelete) {
+          try {
+            if (existsSync(item.filePath)) unlinkSync(item.filePath)
+            appendActivity('info', 'Write backup rotado (eliminado)', item.fileName)
+          } catch {
+            // ignore
           }
         }
       }
     }
+  }
 
-    if (deletedCount === 0) {
-      return { ok: false, error: 'Backup no encontrado para eliminar' }
+  return createdItems
+}
+
+/**
+ * Delete a specific backup file by fileName.
+ */
+export function deleteBackup(fileName: string, kind?: BackupKind): { ok: true } | { ok: false; error: string } {
+  try {
+    const kinds: BackupKind[] = kind ? [kind] : ['write', 'snapshot']
+    let deleted = false
+
+    for (const k of kinds) {
+      const dir = backupsRoot(k)
+      const filePath = join(dir, fileName)
+      if (existsSync(filePath)) {
+        unlinkSync(filePath)
+        deleted = true
+        break
+      }
     }
 
-    appendActivity('info', 'Backup eliminado', backupId)
+    if (!deleted) {
+      // Fallback check legacy root
+      const legacyPath = join(app.getPath('userData'), 'backups', 'TradeSkillMaster', fileName)
+      if (existsSync(legacyPath)) {
+        unlinkSync(legacyPath)
+        deleted = true
+      }
+    }
+
+    if (!deleted) {
+      return { ok: false, error: `Archivo ${fileName} no encontrado` }
+    }
+
+    appendActivity('info', 'Archivo de backup eliminado', fileName)
     return { ok: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
@@ -250,50 +265,33 @@ export function deleteBackup(backupId: string, kind?: BackupKind): { ok: true } 
 }
 
 /**
- * Restores a backup set (TradeSkillMaster.lua and TradeSkillMaster_AppHelper.lua if present).
- * Automatically creates a safety backup before overwriting.
+ * Restores an individual backup file to its target SavedVariables file.
  */
-export function restoreBackup(backupId: string, kind?: BackupKind): { ok: true; restoredTo: string } | { ok: false; error: string } {
+export function restoreBackup(fileName: string, kind?: BackupKind): { ok: true; restoredTo: string } | { ok: false; error: string } {
   const all = listBackups(kind)
-  const chosen = all.find((b) => b.id === backupId || b.fileName === backupId)
-  if (!chosen) return { ok: false, error: 'Backup o Snapshot no encontrado' }
+  const chosen = all.find((b) => b.fileName === fileName || b.id === fileName)
+  if (!chosen) return { ok: false, error: `Archivo ${fileName} no encontrado` }
 
   const mainTarget = resolveLuaPath('inventory')
   if (!mainTarget) return { ok: false, error: 'SavedVariables no configurado' }
 
   const savedVarDir = dirname(mainTarget)
-  const appHelperTarget = join(savedVarDir, 'TradeSkillMaster_AppHelper.lua')
-
-  const dir = backupsRoot(chosen.kind)
-  const backupMainPath = join(dir, `backup-${chosen.id}.TradeSkillMaster.lua`)
-  const backupHelperPath = join(dir, `backup-${chosen.id}.TradeSkillMaster_AppHelper.lua`)
-
-  const actualMainPath = existsSync(backupMainPath) ? backupMainPath : chosen.filePath
+  const targetPath = join(savedVarDir, chosen.targetFilename)
 
   try {
-    // Create safety snapshot before overwriting
-    if (existsSync(mainTarget)) {
-      createRotatingBackup('snapshot', mainTarget)
+    // Create safety snapshot of current target file before overwriting
+    if (existsSync(targetPath)) {
+      createRotatingBackup('snapshot', targetPath)
     }
 
-    // Restore TradeSkillMaster.lua
-    if (existsSync(actualMainPath)) {
-      const tmpMain = `${mainTarget}.restoring`
-      copyFileSync(actualMainPath, tmpMain)
-      copyFileSync(tmpMain, mainTarget)
-      if (existsSync(tmpMain)) unlinkSync(tmpMain)
-    }
+    // Atomic-ish restore: copy + replace
+    const tmp = `${targetPath}.restoring`
+    copyFileSync(chosen.filePath, tmp)
+    copyFileSync(tmp, targetPath)
+    if (existsSync(tmp)) unlinkSync(tmp)
 
-    // Restore TradeSkillMaster_AppHelper.lua if present
-    if (existsSync(backupHelperPath)) {
-      const tmpHelper = `${appHelperTarget}.restoring`
-      copyFileSync(backupHelperPath, tmpHelper)
-      copyFileSync(tmpHelper, appHelperTarget)
-      if (existsSync(tmpHelper)) unlinkSync(tmpHelper)
-    }
-
-    appendActivity('success', 'Backup restaurado', `${chosen.fileName} → ${basename(mainTarget)}`)
-    return { ok: true, restoredTo: mainTarget }
+    appendActivity('success', 'Archivo restaurado', `${chosen.fileName} → ${chosen.targetFilename}`)
+    return { ok: true, restoredTo: targetPath }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     appendActivity('error', 'Restore falló', message)

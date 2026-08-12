@@ -210,8 +210,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.ListBackups, (_event, kind?: 'write' | 'snapshot') => listBackups(kind))
   ipcMain.handle(IpcChannel.CreateBackup, (_event, kind: 'write' | 'snapshot' = 'snapshot') => {
     try {
-      const backup = createRotatingBackup(kind)
-      return { ok: true, backup }
+      const backups = createRotatingBackup(kind)
+      return { ok: true, backups }
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) }
     }

@@ -18,12 +18,10 @@ export interface SyncActionResult {
 export interface BackupInfoDto {
   id: string
   kind: 'write' | 'snapshot'
+  fileType: 'main' | 'apphelper'
   fileName: string
   filePath: string
-  mainFileName: string
-  appHelperFileName?: string
-  hasMain: boolean
-  hasAppHelper: boolean
+  targetFilename: string
   createdAt: string
   sizeBytes: number
 }
@@ -66,7 +64,7 @@ const goblinApi = {
 
   listBackups: (kind?: 'write' | 'snapshot'): Promise<BackupInfoDto[]> => ipcRenderer.invoke(IpcChannel.ListBackups, kind),
 
-  createBackup: (kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; backup?: BackupInfoDto; error?: string }> =>
+  createBackup: (kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; backups?: BackupInfoDto[]; error?: string }> =>
     ipcRenderer.invoke(IpcChannel.CreateBackup, kind),
 
   restoreBackup: (backupId: string, kind?: 'write' | 'snapshot'): Promise<{ ok: boolean; error?: string }> =>
