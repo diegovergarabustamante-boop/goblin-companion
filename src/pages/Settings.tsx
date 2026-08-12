@@ -5,7 +5,11 @@ import type { CompanionSettings, DjangoPingResult } from '../../shared/settings'
 type SaveState = 'idle' | 'saving' | 'saved'
 type TestState = 'idle' | 'testing'
 
-function Settings(): JSX.Element {
+interface SettingsProps {
+  onLogout?: () => void
+}
+
+function Settings({ onLogout }: SettingsProps): JSX.Element {
   const [settings, setSettings] = useState<CompanionSettings | null>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [testState, setTestState] = useState<TestState>('idle')
@@ -64,7 +68,7 @@ function Settings(): JSX.Element {
     setLoginPass('')
     setLoginError(null)
     setTestResult(null)
-    reloadSettings()
+    onLogout?.()
   }
 
   async function handleSave(): Promise<void> {

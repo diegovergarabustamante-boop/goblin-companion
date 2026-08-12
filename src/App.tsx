@@ -6,7 +6,7 @@ import ActivityLog from './pages/ActivityLog'
 import Backups from './pages/Backups'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
-import FirstRunWizard from './components/FirstRunWizard'
+import LoginScreen from './components/LoginScreen'
 import StatusDot from './components/StatusDot'
 import TitleBar from './components/TitleBar'
 
@@ -23,7 +23,7 @@ function App(): JSX.Element {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard')
   const [status, setStatus] = useState<CompanionStatusSnapshot | null>(null)
   const [settings, setSettings] = useState<CompanionSettings | null>(null)
-  const [showWizard, setShowWizard] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -31,7 +31,7 @@ function App(): JSX.Element {
       if (cancelled) return
       setStatus(snapshot)
       setSettings(cfg)
-      setShowWizard(!cfg.firstRunCompleted)
+      setLoaded(true)
     })
     return () => {
       cancelled = true
@@ -40,6 +40,28 @@ function App(): JSX.Element {
 
   useEffect(() => window.goblin.onNavigate((tab) => setActiveTab(tab)), [])
   useEffect(() => window.goblin.onStatusChange((snapshot) => setStatus(snapshot)), [])
+
+  // Still loading
+  if (!loaded || !settings) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#fbbf24', fontSize: '1em' }}>
+        🤖 Cargando Goblin Companion…
+      </div>
+    )
+  }
+
+  // Not logged in — show login screen first
+  if (!settings.companionToken) {
+    return (
+      <LoginScreen
+        initialSettings={settings}
+        onLoginSuccess={(updatedSettings) => {
+          setSettings(updatedSettings)
+          setActiveTab('dashboard')
+        }}
+      />
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -61,23 +83,15 @@ function App(): JSX.Element {
         {activeTab === 'dashboard' && <Dashboard status={status} />}
         {activeTab === 'activity-log' && <ActivityLog />}
         {activeTab === 'backups' && <Backups />}
-        {activeTab === 'settings' && <Settings />}
+        {activeTab === 'settings' && <Settings onLogout={() => setSettings((s) => s ? { ...s, companionToken: '', username: '' } : s)} />}
       </main>
       <footer className="status-bar">
         <StatusDot status={status?.trayStatus ?? 'gray'} />
         <span>{status?.autoSyncEnabled ? 'Auto-sync activo' : 'Auto-sync apagado'}</span>
+        <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.78em' }}>
+          👤 {settings.username}
+        </span>
       </footer>
-
-      {showWizard && settings ? (
-        <FirstRunWizard
-          initial={settings}
-          onCompleted={(next) => {
-            setSettings(next)
-            setShowWizard(false)
-            setActiveTab('dashboard')
-          }}
-        />
-      ) : null}
     </div>
   )
 }
