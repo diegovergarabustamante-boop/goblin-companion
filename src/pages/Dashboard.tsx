@@ -7,12 +7,15 @@ interface DashboardProps {
   status: CompanionStatusSnapshot | null
 }
 
+type SubTab = 'overview' | 'pnl'
+
 function formatWhen(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString()
 }
 
 function Dashboard({ status }: DashboardProps): JSX.Element {
+  const [subTab, setSubTab] = useState<SubTab>('overview')
   const autoSyncEnabled = status?.autoSyncEnabled ?? false
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -65,116 +68,204 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
     status?.djangoReachable === null ? 'Sin verificar' : status?.djangoReachable ? 'OK' : 'No responde'
 
   return (
-    <div className="page">
-      <div className="glass-panel dashboard-grid">
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Auto-sync</span>
-          <label className="switch">
-            <input type="checkbox" checked={autoSyncEnabled} onChange={() => void toggleAutoSync()} />
-            <span className="switch__track" />
-          </label>
-          <span className="dashboard-card__hint">{autoSyncEnabled ? 'Encendido' : 'Apagado'}</span>
-        </div>
-
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Estado Django</span>
-          <span className="dashboard-card__value">{djangoLabel}</span>
-          <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : ' '}</span>
-        </div>
-
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Inventario</span>
-          <span className="dashboard-card__value dashboard-card__value--sm">
-            {formatWhen(status?.lastInventorySyncAt)}
-          </span>
-        </div>
-
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Accounting</span>
-          <span className="dashboard-card__value dashboard-card__value--sm">
-            {formatWhen(status?.lastAccountingSyncAt)}
-          </span>
-        </div>
-
-        <div className="dashboard-card">
-          <span className="dashboard-card__label">Cola</span>
-          <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
-          <span className="dashboard-card__hint">pendientes</span>
-        </div>
-      </div>
-
-      <div className="button-row" style={{ marginTop: 12 }}>
+    <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Sub-tab Navigation Bar inside Dashboard */}
+      <nav
+        aria-label="Dashboard Sub-Secciones"
+        style={{
+          display: 'flex',
+          gap: '8px',
+          borderBottom: '1px solid rgba(251, 191, 36, 0.25)',
+          paddingBottom: '8px'
+        }}
+      >
         <button
           type="button"
-          className="btn btn--primary"
-          disabled={Boolean(status?.syncing || busy !== null)}
-          onClick={() => void forceSync()}
+          onClick={() => setSubTab('overview')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '6px',
+            border: subTab === 'overview' ? '1px solid #fbbf24' : '1px solid transparent',
+            background: subTab === 'overview' ? 'rgba(251, 191, 36, 0.15)' : 'transparent',
+            color: subTab === 'overview' ? '#fbbf24' : '#94a3b8',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.9em',
+            transition: 'all 0.2s ease'
+          }}
         >
-          {status?.syncing || busy === 'sync' ? '⏳ Sincronizando (inventario + accounting)…' : 'Forzar sincronización ahora'}
+          ⚙️ Estado & Controles
         </button>
-      </div>
-
-      {message ? (
-        <div
-          className={`activity-item ${message.startsWith('✓') ? 'activity-item--success' : 'activity-item--error'}`}
-          style={{ marginTop: 12, padding: '10px 14px' }}
+        <button
+          type="button"
+          onClick={() => setSubTab('pnl')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '6px',
+            border: subTab === 'pnl' ? '1px solid #c084fc' : '1px solid transparent',
+            background: subTab === 'pnl' ? 'rgba(192, 132, 252, 0.15)' : 'transparent',
+            color: subTab === 'pnl' ? '#c084fc' : '#94a3b8',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.9em',
+            transition: 'all 0.2s ease'
+          }}
         >
-          <span className="activity-item__message">{message}</span>
-        </div>
-      ) : null}
+          📊 P&L (Profit & Loss) · Coming soon
+        </button>
+      </nav>
 
-      {/* SECCIÓN WRITE TO TSM GROUPS */}
-      <section className="glass-panel" style={{ marginTop: 16 }}>
-        <h2>Write TSM Groups</h2>
-        <p className="page__note">
-          Atajo single-group: usa el mapping guardado en el Cart + todos los items del carrito. Para multi-grupo,
-          escribí desde el Cart web (la companion creará automáticamente un backup pre-escritura).
-        </p>
-        <div className="button-row">
-          <button
-            type="button"
-            className="btn btn--warning"
-            disabled={busy !== null}
-            onClick={() => void handlePreviewWrite()}
-          >
-            {busy === 'write' ? 'Preparando…' : 'Preview Write…'}
-          </button>
-          {preview?.ok ? (
+      {subTab === 'overview' ? (
+        <>
+          <div className="glass-panel dashboard-grid">
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">Auto-sync</span>
+              <label className="switch">
+                <input type="checkbox" checked={autoSyncEnabled} onChange={() => void toggleAutoSync()} />
+                <span className="switch__track" />
+              </label>
+              <span className="dashboard-card__hint">{autoSyncEnabled ? 'Encendido' : 'Apagado'}</span>
+            </div>
+
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">Estado Django</span>
+              <span className="dashboard-card__value">{djangoLabel}</span>
+              <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : ' '}</span>
+            </div>
+
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">Inventario</span>
+              <span className="dashboard-card__value dashboard-card__value--sm">
+                {formatWhen(status?.lastInventorySyncAt)}
+              </span>
+            </div>
+
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">Accounting</span>
+              <span className="dashboard-card__value dashboard-card__value--sm">
+                {formatWhen(status?.lastAccountingSyncAt)}
+              </span>
+            </div>
+
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">Cola</span>
+              <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
+              <span className="dashboard-card__hint">pendientes</span>
+            </div>
+          </div>
+
+          <div className="button-row">
             <button
               type="button"
               className="btn btn--primary"
-              disabled={busy !== null}
-              onClick={() => void handleConfirmWrite()}
+              disabled={Boolean(status?.syncing || busy !== null)}
+              onClick={() => void forceSync()}
             >
-              Confirmar Write
+              {status?.syncing || busy === 'sync' ? '⏳ Sincronizando (inventario + accounting)…' : 'Forzar sincronización ahora'}
             </button>
-          ) : null}
-        </div>
-        {preview?.ok ? (
-          <div className="write-preview" style={{ marginTop: 12 }}>
-            <p className="page__note">
-              {preview.itemCount ?? 0} items · {preview.preview?.length ?? 0} grupo(s) · afectados≈
-              {preview.totalItemsAffected ?? '—'}
-            </p>
-            <ul className="activity-list">
-              {(preview.preview ?? []).map((row) => (
-                <li key={row.group} className="activity-item activity-item--info">
-                  <span className="activity-item__message">{row.group}</span>
-                  <span className="activity-item__detail">
-                    {row.details} · {row.total_items} items
-                  </span>
-                </li>
-              ))}
-            </ul>
           </div>
-        ) : null}
-      </section>
 
-      <p className="page__note" style={{ marginTop: 16 }}>
-        Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la companion lee el `.lua`.
-        El carrito no se llena solo: en Decoder configurá chars/warbank/guilds y usá Apply, o
-        “Load from Companion” en Cart/Arbitrage.
-      </p>
+          {message ? (
+            <div
+              className={`activity-item ${message.startsWith('✓') ? 'activity-item--success' : 'activity-item--error'}`}
+              style={{ padding: '10px 14px' }}
+            >
+              <span className="activity-item__message">{message}</span>
+            </div>
+          ) : null}
+
+          {/* SECCIÓN WRITE TO TSM GROUPS */}
+          <section className="glass-panel">
+            <h2>Write TSM Groups</h2>
+            <p className="page__note">
+              Atajo single-group: usa el mapping guardado en el Cart + todos los items del carrito. Para multi-grupo,
+              escribí desde el Cart web (la companion creará automáticamente un backup pre-escritura).
+            </p>
+            <div className="button-row">
+              <button
+                type="button"
+                className="btn btn--warning"
+                disabled={busy !== null}
+                onClick={() => void handlePreviewWrite()}
+              >
+                {busy === 'write' ? 'Preparando…' : 'Preview Write…'}
+              </button>
+              {preview?.ok ? (
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  disabled={busy !== null}
+                  onClick={() => void handleConfirmWrite()}
+                >
+                  Confirmar Write
+                </button>
+              ) : null}
+            </div>
+            {preview?.ok ? (
+              <div className="write-preview" style={{ marginTop: 12 }}>
+                <p className="page__note">
+                  {preview.itemCount ?? 0} items · {preview.preview?.length ?? 0} grupo(s) · afectados≈
+                  {preview.totalItemsAffected ?? '—'}
+                </p>
+                <ul className="activity-list">
+                  {(preview.preview ?? []).map((row) => (
+                    <li key={row.group} className="activity-item activity-item--info">
+                      <span className="activity-item__message">{row.group}</span>
+                      <span className="activity-item__detail">
+                        {row.details} · {row.total_items} items
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+
+          <p className="page__note">
+            Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la companion lee el `.lua`.
+            El carrito no se llena solo: en Decoder configurá chars/warbank/guilds y usá Apply, o
+            “Load from Companion” en Cart/Arbitrage.
+          </p>
+        </>
+      ) : (
+        /* TAB 2: P&L (PROFIT & LOSS) PLACEHOLDER */
+        <section
+          className="glass-panel"
+          style={{
+            padding: '36px 24px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            border: '1px solid rgba(192, 132, 252, 0.35)',
+            background: 'linear-gradient(135deg, rgba(24, 17, 35, 0.6) 0%, rgba(12, 8, 20, 0.8) 100%)'
+          }}
+        >
+          <div style={{ fontSize: '2.5em', margin: 0 }}>📊</div>
+          <h2 style={{ margin: 0, color: '#c084fc', fontSize: '1.4em' }}>
+            Profit & Loss (P&L) Analytics
+          </h2>
+          <p style={{ maxWidth: '520px', margin: 0, color: '#94a3b8', fontSize: '0.92em', lineHeight: 1.6 }}>
+            El módulo de análisis financiero P&L calculará tus ganancias netas, margen de ventas, oro acumulado e historial contable extraído directamente desde TSM Accounting.
+          </p>
+          <div
+            style={{
+              padding: '6px 16px',
+              borderRadius: '999px',
+              background: 'rgba(192, 132, 252, 0.15)',
+              border: '1px solid rgba(192, 132, 252, 0.4)',
+              color: '#e9d5ff',
+              fontSize: '0.82em',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase'
+            }}
+          >
+            ✦ Próximamente · Módulo en desarrollo ✦
+          </div>
+        </section>
+      )}
     </div>
   )
 }

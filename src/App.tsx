@@ -10,14 +10,13 @@ import FirstRunWizard from './components/FirstRunWizard'
 import StatusDot from './components/StatusDot'
 import TitleBar from './components/TitleBar'
 
-type TabId = AppTab | 'pnl'
+type TabId = AppTab
 
 const TABS: Array<{ id: TabId; label: string; disabled?: boolean }> = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'activity-log', label: 'Activity Log' },
   { id: 'backups', label: 'Backups' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'pnl', label: 'P&L · Coming soon', disabled: true }
+  { id: 'settings', label: 'Settings' }
 ]
 
 function App(): JSX.Element {
