@@ -55,6 +55,10 @@ const goblinApi = {
 
   getActivityLog: (): Promise<ActivityEventDto[]> => ipcRenderer.invoke(IpcChannel.GetActivityLog),
 
+  clearActivityLog: (): Promise<ActivityEventDto[]> => ipcRenderer.invoke(IpcChannel.ClearActivityLog),
+
+  openActivityLogFolder: (): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenActivityLogFolder),
+
   listBackups: (): Promise<BackupInfoDto[]> => ipcRenderer.invoke(IpcChannel.ListBackups),
 
   createBackup: (): Promise<{ ok: boolean; backup?: BackupInfoDto; error?: string }> =>

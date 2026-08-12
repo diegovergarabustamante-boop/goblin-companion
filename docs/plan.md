@@ -332,13 +332,13 @@ Estimación: **~10–14 días de trabajo enfocado**, no “12 días con updater 
 | Etapa | Días | Entregable | Estado |
 |---|---|---|---|
 | 0. Scaffold + UI shell | 1–2 | Ventana glass + tabs + tray placeholder | **Hecho** |
-| 1. Settings + wizard | 1–2 | Paths + token + test conexión | Settings persistente + "Probar conexión" hechos; falta first-run wizard dedicado |
+| 1. Settings + wizard | 1–2 | Paths + token + test conexión | **Hecho** — Settings + first-run wizard (Etapa 7) |
 | 2. Auth Django token | 0.5–1 | Endpoint + client companion | **Hecho** — `GET /api/companion/ping/` protegido por `X-Companion-Token`, cliente HTTP en la companion |
 | 3. Watcher + sync | 2–3 | Auto/manual sync real a DB | **Hecho (3a+3b)** — watcher + `sync-inventory` / `sync-accounting` |
 | 4. Connection + queue | 1 | Amarillo/rojo + reintentos | **Hecho** — connection-monitor + cola con flush al reconectar |
 | 5. Local server + Opción 3 web | 1–2 | Decoder + TSM + Carrito + Home | **Hecho** — `:8765/status|/sync` + paneles en Decoder/TSM/Cart + chip en navbar (Home) |
 | 6. Write TSM + backups rotatorios | 1–2 | Preview, confirm, N backups, restore UI | **Hecho** — backup-manager + `/backup` + Controls Write + endpoints companion `tsm-write` |
-| 7. Polish UI + logs + notifs | 1–2 | Se siente producto | Pendiente |
+| 7. Polish UI + logs + notifs | 1–2 | Se siente producto | **Hecho** — notifs nativas, autostart, first-run wizard, Activity Log polish |
 | 8. Installer `.exe` | 1 | Cuando lo anterior esté estable | Pendiente |
 
 **Definition of Done del MVP:**  

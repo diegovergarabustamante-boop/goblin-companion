@@ -23,7 +23,8 @@ function Settings(): JSX.Element {
   async function handleSave(): Promise<void> {
     if (!settings) return
     setSaveState('saving')
-    await window.goblin.updateSettings(settings)
+    const next = await window.goblin.updateSettings(settings)
+    setSettings(next)
     setSaveState('saved')
     setTimeout(() => setSaveState('idle'), 1500)
   }
@@ -96,6 +97,14 @@ function Settings(): JSX.Element {
             placeholder="…/World of Warcraft/_retail_/WTF/Account/…/SavedVariables"
           />
         </label>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={settings.autoSyncEnabled}
+            onChange={(event) => patch({ autoSyncEnabled: event.target.checked })}
+          />
+          <span>Auto-sync al detectar cambios en .lua</span>
+        </label>
       </section>
 
       <section className="glass-panel">
@@ -115,12 +124,20 @@ function Settings(): JSX.Element {
       <section className="glass-panel">
         <h2>Notificaciones y arranque</h2>
         <label className="checkbox-field">
-          <input type="checkbox" disabled />
-          <span>Notificaciones nativas (próximamente)</span>
+          <input
+            type="checkbox"
+            checked={settings.notificationsEnabled}
+            onChange={(event) => patch({ notificationsEnabled: event.target.checked })}
+          />
+          <span>Notificaciones nativas (sync / write)</span>
         </label>
         <label className="checkbox-field">
-          <input type="checkbox" disabled />
-          <span>Iniciar con Windows (próximamente)</span>
+          <input
+            type="checkbox"
+            checked={settings.startWithWindows}
+            onChange={(event) => patch({ startWithWindows: event.target.checked })}
+          />
+          <span>Iniciar con Windows (minimizado al tray)</span>
         </label>
       </section>
 

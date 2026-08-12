@@ -8,6 +8,8 @@ export const IpcChannel = {
   SyncInventory: 'sync:inventory',
   SyncAccounting: 'sync:accounting',
   GetActivityLog: 'activity:get',
+  ClearActivityLog: 'activity:clear',
+  OpenActivityLogFolder: 'activity:open-folder',
   ActivityAppended: 'activity:appended',
   ListBackups: 'backups:list',
   CreateBackup: 'backups:create',

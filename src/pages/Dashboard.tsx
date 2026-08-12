@@ -6,6 +6,11 @@ interface DashboardProps {
   status: CompanionStatusSnapshot | null
 }
 
+function formatWhen(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString()
+}
+
 function Dashboard({ status }: DashboardProps): JSX.Element {
   const autoSyncEnabled = status?.autoSyncEnabled ?? false
 
@@ -34,30 +39,40 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
         </div>
 
         <div className="dashboard-card">
-          <span className="dashboard-card__label">Último sync</span>
-          <span className="dashboard-card__value">
-            {status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleTimeString() : '—'}
+          <span className="dashboard-card__label">Estado Django</span>
+          <span className="dashboard-card__value">{djangoLabel}</span>
+          <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : ' '}</span>
+        </div>
+
+        <div className="dashboard-card">
+          <span className="dashboard-card__label">Inventario</span>
+          <span className="dashboard-card__value dashboard-card__value--sm">
+            {formatWhen(status?.lastInventorySyncAt)}
           </span>
         </div>
 
         <div className="dashboard-card">
-          <span className="dashboard-card__label">Estado Django</span>
-          <span className="dashboard-card__value">{djangoLabel}</span>
+          <span className="dashboard-card__label">Accounting</span>
+          <span className="dashboard-card__value dashboard-card__value--sm">
+            {formatWhen(status?.lastAccountingSyncAt)}
+          </span>
         </div>
 
         <div className="dashboard-card">
           <span className="dashboard-card__label">Cola</span>
           <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
-          <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : 'pendientes'}</span>
+          <span className="dashboard-card__hint">pendientes</span>
         </div>
       </div>
 
-      <button type="button" className="btn btn--primary" onClick={() => void forceSync()}>
-        Forzar sync ahora
-      </button>
+      <div className="button-row">
+        <button type="button" className="btn btn--primary" onClick={() => void forceSync()}>
+          Forzar sync ahora
+        </button>
+      </div>
       <p className="page__note">
-        Etapa 3b: el sync persiste en Django. Inventario actualiza el carrito si hay personajes
-        seleccionados en Decoder; accounting guarda ItemSellStats.
+        Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la web se actualiza sola. El [×] de la
+        ventana deja la companion en el tray.
       </p>
     </div>
   )

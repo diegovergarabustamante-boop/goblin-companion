@@ -1,6 +1,7 @@
 import type { CompanionStatusSnapshot, TrayStatus } from '../../shared/settings'
 import { appendActivity } from './activity-log'
 import { pingDjango, syncAccounting, syncInventory } from './http-client'
+import { notify } from './notifications'
 import { getSettings } from './settings'
 import { validateLuaFile, type WatchedKind } from './watcher'
 
@@ -156,6 +157,7 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
     state.djangoReachable = false
     appendActivity('error', `Sync ${kind} falló`, result.error)
     enqueue(kind, filePath)
+    notify('Sync falló', result.error ?? `No se pudo sincronizar ${kind}`)
     emitStatus()
     return { ok: false, kind, filePath, error: result.error, queued: true }
   }
@@ -172,6 +174,12 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
     `Sync ${kind} OK`,
     `${result.filename ?? basenameSafe(filePath)} · ${result.detail ?? result.sizeFormatted ?? '?'}`
   )
+  if (reason === 'manual') {
+    notify(
+      `Sync ${kind} OK`,
+      result.detail ?? result.filename ?? basenameSafe(filePath)
+    )
+  }
   emitStatus()
 
   return {

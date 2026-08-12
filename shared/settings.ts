@@ -12,6 +12,8 @@ export interface CompanionSettings {
   wowSavedVariablesPath: string
   localServerPort: number
   firstRunCompleted: boolean
+  notificationsEnabled: boolean
+  startWithWindows: boolean
 }
 
 export const DEFAULT_SETTINGS: CompanionSettings = {
@@ -21,7 +23,9 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   backupCount: 3,
   wowSavedVariablesPath: '',
   localServerPort: 8765,
-  firstRunCompleted: false
+  firstRunCompleted: false,
+  notificationsEnabled: true,
+  startWithWindows: false
 }
 
 /** Estados de color del tray, ver plan sección 8. */

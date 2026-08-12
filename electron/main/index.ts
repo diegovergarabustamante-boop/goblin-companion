@@ -6,9 +6,11 @@ import { IpcChannel, type AppTab } from '../../shared/ipc'
 import type { CompanionSettings } from '../../shared/settings'
 import {
   appendActivity,
+  clearActivityLog,
   getActivityLog,
   hydrateActivityLogFromDisk,
-  onActivity
+  onActivity,
+  openActivityLogFolder
 } from './activity-log'
 import { isQuittingApp, markQuitting } from './app-state'
 import {
@@ -21,8 +23,10 @@ import { startConnectionMonitor, stopConnectionMonitor } from './connection-moni
 import { executeTsmWrite, pingDjango, previewTsmWrite } from './http-client'
 import { loadDotEnv } from './load-env'
 import { startLocalServer, stopLocalServer } from './local-server'
+import { notify } from './notifications'
 import { resolveLuaPath } from './paths'
 import { getSettings, updateSettings } from './settings'
+import { applyAutostart } from './startup'
 import { getSyncSnapshot, markDjangoReachable, onSyncStatusChange, syncFile } from './sync-manager'
 import { createTray, setTrayStatus } from './tray'
 import { restartWatcher, stopWatcher } from './watcher'
@@ -118,8 +122,10 @@ async function runTsmWriteConfirm(assignments: Parameters<typeof executeTsmWrite
   const result = await executeTsmWrite(getSettings(), filePath, assignments)
   if (result.ok) {
     appendActivity('success', 'Write TSM Groups OK', JSON.stringify(result.stats ?? {}))
+    notify('Write TSM OK', 'Grupos escritos en TradeSkillMaster.lua')
   } else {
     appendActivity('error', 'Write TSM Groups falló', result.error)
+    notify('Write TSM falló', result.error ?? 'Error desconocido')
   }
   return result
 }
@@ -137,6 +143,10 @@ function registerIpcHandlers(): void {
 
     if (prev.localServerPort !== next.localServerPort) {
       startLocalServer(next.localServerPort)
+    }
+
+    if (prev.startWithWindows !== next.startWithWindows) {
+      applyAutostart(next.startWithWindows)
     }
 
     broadcastStatus()
@@ -160,6 +170,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.SyncInventory, () => runManualSync('inventory'))
   ipcMain.handle(IpcChannel.SyncAccounting, () => runManualSync('accounting'))
   ipcMain.handle(IpcChannel.GetActivityLog, () => getActivityLog())
+  ipcMain.handle(IpcChannel.ClearActivityLog, () => {
+    clearActivityLog()
+    return []
+  })
+  ipcMain.handle(IpcChannel.OpenActivityLogFolder, () => {
+    openActivityLogFolder()
+  })
 
   ipcMain.handle(IpcChannel.ListBackups, () => listBackups())
   ipcMain.handle(IpcChannel.CreateBackup, () => {
@@ -207,6 +224,7 @@ if (!gotLock) {
     wireWatcher()
     startLocalServer()
     startConnectionMonitor()
+    applyAutostart(getSettings().startWithWindows)
     broadcastStatus()
     appendActivity('info', 'Goblin Companion listo')
   })

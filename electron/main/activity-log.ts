@@ -1,6 +1,6 @@
-import { app } from 'electron'
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { app, shell } from 'electron'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 import type { ActivityEvent, ActivityLevel } from '../../shared/settings'
 
@@ -70,4 +70,17 @@ export function hydrateActivityLogFromDisk(): void {
   } catch {
     // ignore
   }
+}
+
+export function clearActivityLog(): void {
+  events.length = 0
+  try {
+    writeFileSync(logPath(), '', 'utf8')
+  } catch {
+    // ignore
+  }
+}
+
+export function openActivityLogFolder(): void {
+  void shell.openPath(dirname(logPath()))
 }
