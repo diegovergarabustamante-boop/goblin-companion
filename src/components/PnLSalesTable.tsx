@@ -63,6 +63,7 @@ const WOW_QUALITY_COLORS: Record<number, string> = {
 interface ItemMeta {
   quality: number
   iconUrl: string
+  name?: string
 }
 
 const itemMetaCache: Record<number, ItemMeta> = {}
@@ -87,9 +88,10 @@ function WowItemLinkCell({
     if (window.goblin?.getItemTooltip) {
       window.goblin.getItemTooltip(blizzardId).then((res) => {
         if (active && res) {
-          const itemMeta = {
+          const itemMeta: ItemMeta = {
             quality: typeof res.quality === 'number' ? res.quality : 2,
-            iconUrl: res.iconUrl || '/images/goblin_assets/icon_inventory.png'
+            iconUrl: res.iconUrl || '/images/goblin_assets/icon_inventory.png',
+            name: res.name || ''
           }
           itemMetaCache[blizzardId] = itemMeta
           setMeta(itemMeta)
@@ -111,6 +113,9 @@ function WowItemLinkCell({
   const qualityColor = meta ? (WOW_QUALITY_COLORS[meta.quality] || '#1eff00') : '#1eff00'
   const iconUrl = meta?.iconUrl || '/images/goblin_assets/icon_inventory.png'
   const wowUrl = blizzardId ? `https://www.wowhead.com/item=${blizzardId}` : null
+
+  const isGenericName = /^Item\s+\d+$/i.test(itemName) || /^i:\d+/i.test(itemName) || itemName === String(blizzardId)
+  const displayName = (isGenericName && meta?.name) ? meta.name : (meta?.name || itemName)
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', overflow: 'hidden' }}>
@@ -151,10 +156,10 @@ function WowItemLinkCell({
             onMouseOver={(e) => (e.currentTarget.style.filter = 'brightness(1.35)')}
             onMouseOut={(e) => (e.currentTarget.style.filter = 'none')}
           >
-            {itemName}
+            {displayName}
           </a>
         ) : (
-          <span style={{ fontWeight: 700, color: qualityColor }}>{itemName}</span>
+          <span style={{ fontWeight: 700, color: qualityColor }}>{displayName}</span>
         )}
         {quantity > 1 && (
           <span style={{ color: '#fbbf24', fontSize: '0.85em', marginLeft: '5px', fontWeight: 700 }}>
@@ -220,15 +225,17 @@ export function PnLSalesTable() {
   )
 
   const thStyle = (textAlign: 'left' | 'center' | 'right', width: string, isLast = false): React.CSSProperties => ({
-    padding: '12px 14px', width, textAlign, color: '#fbbf24',
+    padding: '12px 8px', width, textAlign, color: '#fbbf24',
     fontFamily: 'var(--font-header, sans-serif)', letterSpacing: '0.04em',
     borderRight: isLast ? 'none' : '1px solid rgba(251,191,36,0.35)',
     borderBottom: '1px solid rgba(251,191,36,0.35)',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
   })
 
   const tdStyle = (textAlign: 'left' | 'center' | 'right', isLast = false): React.CSSProperties => ({
-    padding: '10px 14px', textAlign,
+    padding: '10px 8px', textAlign,
     borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.08)',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
@@ -301,13 +308,13 @@ export function PnLSalesTable() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
-                  <th style={thStyle('center', '26%')}>Item Name</th>
-                  <th style={thStyle('center', '14%')}>Buy Date</th>
-                  <th style={thStyle('center', '14%')}>Sell Date</th>
-                  <th style={thStyle('center', '12%')}>Posts Before Sale</th>
-                  <th style={thStyle('center', '11%')}>Buy Price</th>
-                  <th style={thStyle('center', '11%')}>Sell Price</th>
-                  <th style={thStyle('center', '12%', true)}>Net Profit / Loss</th>
+                  <th style={thStyle('center', '26%')} title="Item Name">Item Name</th>
+                  <th style={thStyle('center', '14%')} title="Buy Date">Buy Date</th>
+                  <th style={thStyle('center', '14%')} title="Sell Date">Sell Date</th>
+                  <th style={thStyle('center', '12%')} title="Posts Before Sale">Posts Before Sale</th>
+                  <th style={thStyle('center', '11%')} title="Buy Price">Buy Price</th>
+                  <th style={thStyle('center', '11%')} title="Sell Price">Sell Price</th>
+                  <th style={thStyle('center', '12%', true)} title="Net Profit / Loss">Net Profit / Loss</th>
                 </tr>
               </thead>
               <tbody>

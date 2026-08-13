@@ -560,12 +560,20 @@ export async function fetchItemTooltip(blizzardId: number): Promise<ItemTooltipD
         }
       }
 
+      let name = body.name ?? ''
+      if (!name && body.tooltip) {
+        const nameMatch = body.tooltip.match(/<b class="q\d+">([^<]+)<\/b>/i)
+        if (nameMatch) {
+          name = nameMatch[1].trim()
+        }
+      }
+
       const result: ItemTooltipDto = {
         quality: typeof body.quality === 'number' ? body.quality : 2,
         iconUrl: iconName
           ? `https://wow.zamimg.com/images/wow/icons/medium/${iconName}.jpg`
           : '',
-        name: body.name ?? ''
+        name
       }
 
       if (result.iconUrl || typeof body.quality === 'number') {
