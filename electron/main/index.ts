@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 
-import { BrowserWindow, app, ipcMain, shell } from 'electron'
+import { BrowserWindow, app, ipcMain, nativeImage, shell, type NativeImage } from 'electron'
 
 import { IpcChannel, type AppTab } from '../../shared/ipc'
 import type { CompanionSettings } from '../../shared/settings'
@@ -42,17 +42,23 @@ if (process.platform === 'win32') {
 
 let mainWindow: BrowserWindow | null = null
 
-function resolveAppIcon(): string | undefined {
+function resolveAppIcon(): NativeImage | undefined {
   const candidates = [
+    join(app.getAppPath(), 'build/icon.ico'),
     join(app.getAppPath(), 'public/images/goblin_assets/coin_badge_1.png'),
     join(app.getAppPath(), 'build/icon.png'),
+    join(import.meta.dirname, '../../build/icon.ico'),
     join(import.meta.dirname, '../../public/images/goblin_assets/coin_badge_1.png'),
     join(import.meta.dirname, '../../build/icon.png'),
+    join(process.resourcesPath, 'icon.ico'),
     join(process.resourcesPath, 'icon.png')
   ]
   for (const candidate of candidates) {
     try {
-      if (existsSync(candidate)) return candidate
+      if (existsSync(candidate)) {
+        const img = nativeImage.createFromPath(candidate)
+        if (!img.isEmpty()) return img
+      }
     } catch {
       // ignore
     }
@@ -62,7 +68,7 @@ function resolveAppIcon(): string | undefined {
 
 function createMainWindow(): BrowserWindow {
   const bounds = getWindowBounds()
-  const icon = resolveAppIcon()
+  const appIcon = resolveAppIcon()
 
   const window = new BrowserWindow({
     ...bounds,
@@ -71,13 +77,17 @@ function createMainWindow(): BrowserWindow {
     frame: false,
     show: false,
     backgroundColor: '#0b0f19',
-    ...(icon ? { icon } : {}),
+    ...(appIcon ? { icon: appIcon } : {}),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true
     }
   })
+
+  if (appIcon) {
+    window.setIcon(appIcon)
+  }
 
   window.on('ready-to-show', () => {
     if (app.getLoginItemSettings().wasOpenedAsHidden) {
