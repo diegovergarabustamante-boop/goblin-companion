@@ -77,6 +77,124 @@ export function CoinBadge({ copper }: { copper: number }) {
   )
 }
 
+const QUALITY_COLORS: Record<number, string> = {
+  0: '#9d9d9d', // Poor (Gray)
+  1: '#ffffff', // Common (White)
+  2: '#1eff00', // Uncommon (Green)
+  3: '#0070dd', // Rare (Blue)
+  4: '#a335ee', // Epic (Purple)
+  5: '#ff8000', // Legendary (Orange)
+  6: '#e6cc80', // Artifact (Gold)
+  7: '#00ccff'  // Heirloom (Cyan)
+}
+
+interface ItemMeta {
+  quality: number
+  icon: string
+}
+
+const itemMetaCache: Record<number, ItemMeta> = {}
+
+function WowItemLink({
+  blizzardId,
+  itemName,
+  quantity
+}: {
+  blizzardId: number | null
+  itemName: string
+  quantity: number
+}) {
+  const [meta, setMeta] = useState<ItemMeta | null>(
+    blizzardId && itemMetaCache[blizzardId] ? itemMetaCache[blizzardId] : null
+  )
+
+  useEffect(() => {
+    if (!blizzardId || itemMetaCache[blizzardId]) return
+    let active = true
+
+    fetch(`https://nether.wowhead.com/tooltip/item/${blizzardId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data && typeof data.quality === 'number') {
+          const itemMeta = {
+            quality: data.quality ?? 1,
+            icon: data.icon ? `https://wow.zamimg.com/images/wow/icons/medium/${data.icon}.jpg` : ''
+          }
+          itemMetaCache[blizzardId] = itemMeta
+          setMeta(itemMeta)
+        }
+      })
+      .catch(() => {
+        // Fallback silently if offline
+      })
+
+    return () => {
+      active = false
+    }
+  }, [blizzardId])
+
+  const qualityColor = meta ? (QUALITY_COLORS[meta.quality] || '#1eff00') : '#38bdf8'
+  const iconUrl = meta?.icon || '/images/goblin_assets/icon_inventory.png'
+  const targetUrl = blizzardId ? `https://www.wowhead.com/item=${blizzardId}` : '#'
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', maxWidth: '100%', overflow: 'hidden' }}>
+      <img
+        src={iconUrl}
+        alt=""
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 4,
+          border: meta ? `1px solid ${qualityColor}` : '1px solid rgba(251, 191, 36, 0.4)',
+          objectFit: 'cover',
+          flexShrink: 0,
+          background: '#0a0d14'
+        }}
+      />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {blizzardId ? (
+          <a
+            href={targetUrl}
+            data-wowhead={`item=${blizzardId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              e.preventDefault()
+              if (window.goblin?.openExternal) {
+                void window.goblin.openExternal(targetUrl)
+              } else {
+                window.open(targetUrl, '_blank')
+              }
+            }}
+            style={{
+              color: qualityColor,
+              fontWeight: 700,
+              textDecoration: 'none',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              textShadow: `0 0 8px ${qualityColor}33`,
+              transition: 'filter 0.15s ease'
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.filter = 'brightness(1.3)')}
+            onMouseOut={(e) => (e.currentTarget.style.filter = 'none')}
+          >
+            {itemName}
+          </a>
+        ) : (
+          <span style={{ fontWeight: 700, color: qualityColor }}>{itemName}</span>
+        )}
+        {quantity > 1 && (
+          <span style={{ color: '#fbbf24', fontSize: '0.85em', marginLeft: '5px', fontWeight: 700 }}>
+            x{quantity}
+          </span>
+        )}
+      </span>
+    </div>
+  )
+}
+
 export function PnLSalesTable() {
   const [sales, setSales] = useState<RecentSaleItemDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -390,51 +508,13 @@ export function PnLSalesTable() {
                           index % 2 === 0 ? 'rgba(15, 10, 5, 0.45)' : 'rgba(25, 18, 9, 0.65)'
                       }}
                     >
-                      {/* Item Name with Wowhead Link */}
+                      {/* Item Name with WoW Icon & Quality Color */}
                       <td style={tdStyle('left')}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                          <img
-                            src="/images/goblin_assets/icon_inventory.png"
-                            alt=""
-                            style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
-                          />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {bId ? (
-                              <a
-                                href={`https://www.wowhead.com/item=${bId}`}
-                                data-wowhead={`item=${bId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="q"
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  const targetUrl = `https://www.wowhead.com/item=${bId}`
-                                  if (window.goblin?.openExternal) {
-                                    void window.goblin.openExternal(targetUrl)
-                                  } else {
-                                    window.open(targetUrl, '_blank')
-                                  }
-                                }}
-                                style={{
-                                  fontWeight: 600,
-                                  textDecoration: 'none',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                {sale.itemName}
-                              </a>
-                            ) : (
-                              <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{sale.itemName}</span>
-                            )}
-                            {sale.quantity > 1 && (
-                              <span style={{ color: '#fbbf24', fontSize: '0.85em', marginLeft: '4px' }}>
-                                x{sale.quantity}
-                              </span>
-                            )}
-                          </span>
-                        </div>
+                        <WowItemLink
+                          blizzardId={bId}
+                          itemName={sale.itemName}
+                          quantity={sale.quantity}
+                        />
                       </td>
 
                       {/* Date / Time */}
