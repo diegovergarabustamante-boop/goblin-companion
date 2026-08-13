@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react'
 
 import type { CompanionStatusSnapshot } from '../../shared/settings'
+import { PnLSalesTable } from '../components/PnLSalesTable'
 
 interface DashboardProps {
   status: CompanionStatusSnapshot | null
@@ -169,47 +170,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           </p>
         </>
       ) : (
-        /* TAB 2: P&L (PROFIT & LOSS) PLACEHOLDER */
-        <section
-          className="glass-panel"
-          style={{
-            padding: '40px 24px',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-            border: '1.5px solid rgba(192, 132, 252, 0.4)',
-            background: 'linear-gradient(135deg, rgba(28, 18, 40, 0.9) 0%, rgba(14, 8, 22, 0.95) 100%)'
-          }}
-        >
-          <img
-            src="/images/goblin_assets/coin_badge_1.png"
-            alt="Gold Coin"
-            style={{ width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(192, 132, 252, 0.6))' }}
-          />
-          <h2 style={{ margin: 0, color: '#c084fc', fontSize: '1.5em', justifyContent: 'center' }}>
-            Profit & Loss (P&L) Analytics
-          </h2>
-          <p style={{ maxWidth: '520px', margin: 0, color: '#94a3b8', fontSize: '0.92em', lineHeight: 1.6 }}>
-            The P&L financial analysis module will calculate your net profits, sales margins, accumulated gold, and accounting history extracted directly from TSM Accounting.
-          </p>
-          <div
-            style={{
-              padding: '6px 18px',
-              borderRadius: '999px',
-              background: 'rgba(192, 132, 252, 0.15)',
-              border: '1px solid rgba(192, 132, 252, 0.4)',
-              color: '#e9d5ff',
-              fontSize: '0.82em',
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase'
-            }}
-          >
-            ✦ Coming soon · Module under development ✦
-          </div>
-        </section>
+        <PnLSalesTable />
       )}
     </div>
   )

@@ -86,6 +86,9 @@ const goblinApi = {
     assignments: TsmWritePreviewDto['assignments']
   ): Promise<TsmWriteResultDto> => ipcRenderer.invoke(IpcChannel.ConfirmTsmWrite, assignments),
 
+  getRecentSales: (limit = 100): Promise<import('../main/http-client').RecentSalesResponseDto> =>
+    ipcRenderer.invoke(IpcChannel.GetRecentSales, limit),
+
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 
   minimizeWindow: (): void => ipcRenderer.send(IpcChannel.WindowMinimize),

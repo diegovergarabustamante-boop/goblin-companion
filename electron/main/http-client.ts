@@ -413,3 +413,96 @@ export async function completePendingWrite(
     // fire and forget
   }
 }
+
+export interface RecentSaleItemDto {
+  id: string
+  itemId: string
+  itemName: string
+  soldAt: string
+  quantity: number
+  buyPriceCopper: number
+  sellPriceCopper: number
+  postsBeforeSale: number
+  netProfitCopper: number
+  buyer?: string
+  realm?: string
+}
+
+export interface RecentSalesResponseDto {
+  ok: boolean
+  sales?: RecentSaleItemDto[]
+  total?: number
+  totalRevenueCopper?: number
+  totalCostCopper?: number
+  totalProfitCopper?: number
+  error?: string
+}
+
+export async function fetchRecentSales(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  limit = 100
+): Promise<RecentSalesResponseDto> {
+  let url: string
+  try {
+    url = new URL(`/api/companion/recent-sales/?limit=${limit}`, settings.djangoUrl).toString()
+  } catch {
+    return { ok: false, error: 'Invalid Django Server URL' }
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: companionHeaders(settings.companionToken)
+    })
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      sales?: Array<{
+        id: string
+        item_id: string
+        item_name: string
+        sold_at: string
+        quantity: number
+        buy_price_copper: number
+        sell_price_copper: number
+        posts_before_sale: number
+        net_profit_copper: number
+        buyer?: string
+        realm?: string
+      }>
+      total?: number
+      total_revenue_copper?: number
+      total_cost_copper?: number
+      total_profit_copper?: number
+      error?: string
+    } | null
+
+    if (!response.ok || !body?.success) {
+      return { ok: false, error: body?.error ?? `HTTP error ${response.status}` }
+    }
+
+    const salesList: RecentSaleItemDto[] = (body.sales ?? []).map((s) => ({
+      id: s.id,
+      itemId: s.item_id,
+      itemName: s.item_name,
+      soldAt: s.sold_at,
+      quantity: s.quantity,
+      buyPriceCopper: s.buy_price_copper,
+      sellPriceCopper: s.sell_price_copper,
+      postsBeforeSale: s.posts_before_sale,
+      netProfitCopper: s.net_profit_copper,
+      buyer: s.buyer,
+      realm: s.realm
+    }))
+
+    return {
+      ok: true,
+      sales: salesList,
+      total: body.total ?? salesList.length,
+      totalRevenueCopper: body.total_revenue_copper ?? 0,
+      totalCostCopper: body.total_cost_copper ?? 0,
+      totalProfitCopper: body.total_profit_copper ?? 0
+    }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}

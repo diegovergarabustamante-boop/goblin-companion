@@ -18,6 +18,7 @@ export const IpcChannel = {
   OpenBackupsFolder: 'backups:open-folder',
   PreviewTsmWrite: 'tsm:preview-write',
   ConfirmTsmWrite: 'tsm:confirm-write',
+  GetRecentSales: 'sales:get-recent',
   NavigateTo: 'nav:goto',
   LoginCompanion: 'auth:login',
   LogoutCompanion: 'auth:logout',
