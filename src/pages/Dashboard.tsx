@@ -154,6 +154,69 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             </div>
           </div>
 
+          {/* Card / Banner de Última Escritura TSM (Web -> Companion Sync) */}
+          <div
+            className="glass-panel"
+            style={{
+              padding: '14px 18px',
+              borderRadius: '10px',
+              border: status?.lastTsmWrite?.status === 'failed'
+                ? '1px solid rgba(239, 68, 68, 0.4)'
+                : status?.lastTsmWrite?.status === 'processing'
+                ? '1px solid rgba(96, 165, 250, 0.4)'
+                : '1px solid rgba(74, 222, 128, 0.25)',
+              background: status?.lastTsmWrite?.status === 'failed'
+                ? 'rgba(239, 68, 68, 0.08)'
+                : status?.lastTsmWrite?.status === 'processing'
+                ? 'rgba(96, 165, 250, 0.08)'
+                : 'rgba(74, 222, 128, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '1.1em' }}>
+                  {status?.lastTsmWrite?.status === 'processing'
+                    ? '⚡'
+                    : status?.lastTsmWrite?.status === 'failed'
+                    ? '❌'
+                    : status?.lastTsmWrite?.status === 'done'
+                    ? '✅'
+                    : '✍️'}
+                </span>
+                <strong style={{ fontSize: '0.95em', color: '#f1f5f9' }}>
+                  Escritura TSM desde Web {status?.lastTsmWrite?.writeId ? `(#${status.lastTsmWrite.writeId})` : ''}
+                </strong>
+                {status?.lastTsmWrite?.at ? (
+                  <span style={{ fontSize: '0.78em', color: '#94a3b8' }}>
+                    · {new Date(status.lastTsmWrite.at).toLocaleTimeString()}
+                  </span>
+                ) : null}
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85em', color: '#cbd5e1' }}>
+                {status?.lastTsmWrite
+                  ? status.lastTsmWrite.detail
+                  : 'Sin órdenes de escritura recientes. Escribí grupos desde el Cart web o la sección manual inferior.'}
+              </p>
+            </div>
+            {status?.lastTsmWrite?.status === 'processing' ? (
+              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(96, 165, 250, 0.2)', color: '#60a5fa' }}>
+                Ejecutando…
+              </span>
+            ) : status?.lastTsmWrite?.status === 'done' ? (
+              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(74, 222, 128, 0.2)', color: '#4ade80' }}>
+                Completado
+              </span>
+            ) : status?.lastTsmWrite?.status === 'failed' ? (
+              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
+                Falló
+              </span>
+            ) : null}
+          </div>
+
           <div className="button-row">
             <button
               type="button"

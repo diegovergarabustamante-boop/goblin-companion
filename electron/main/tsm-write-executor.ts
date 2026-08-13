@@ -24,6 +24,7 @@ import {
 } from './http-client'
 import { notify } from './notifications'
 import { getSettings } from './settings'
+import { updateLastTsmWrite } from './sync-manager'
 
 /** Semáforo para evitar ejecuciones paralelas */
 let executing = false
@@ -42,22 +43,33 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
   if (!pending) return
 
   executing = true
-  appendActivity('info', `✍️ Write TSM recibido (#${pending.writeId})`, `${pending.assignments.length} grupos`)
+  const now = new Date().toISOString()
+  updateLastTsmWrite({
+    at: now,
+    writeId: pending.writeId,
+    status: 'processing',
+    detail: `Procesando ${pending.assignments.length} grupo(s)…`
+  })
+
+  appendActivity('info', `📥 Orden de escritura recibida (#${pending.writeId})`, `${pending.assignments.length} grupo(s) a escribir desde la web`)
 
   try {
-    // Construir la ruta al TradeSkillMaster.lua desde la carpeta configurada
     const tsmPath = resolveTsmLuaPath(settings)
     if (!tsmPath) {
-      await completePendingWrite(settings, pending.writeId, false, undefined, 'No se encontró TradeSkillMaster.lua. Configurá la ruta de SavedVariables en Settings.')
+      const errMsg = 'No se encontró TradeSkillMaster.lua. Configurá la ruta de SavedVariables en Settings.'
+      await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
+      updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
       appendActivity('error', `❌ Write #${pending.writeId} fallido`, 'Carpeta SavedVariables no configurada')
-      notify('Goblin Companion', '❌ Write TSM fallido: configurá la carpeta SavedVariables en Settings.')
+      notify('Goblin Companion', '❌ Write TSM fallido: configurá la ruta de SavedVariables en Settings.')
       return
     }
 
     if (!fs.existsSync(tsmPath)) {
-      await completePendingWrite(settings, pending.writeId, false, undefined, `Archivo no encontrado: ${tsmPath}`)
-      appendActivity('error', `❌ Write #${pending.writeId} fallido`, `No existe: ${path.basename(tsmPath)}`)
-      notify('Goblin Companion', `❌ Write TSM fallido: no se encontró ${path.basename(tsmPath)}`)
+      const errMsg = `Archivo no encontrado: ${path.basename(tsmPath)}`
+      await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
+      updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
+      appendActivity('error', `❌ Write #${pending.writeId} fallido`, errMsg)
+      notify('Goblin Companion', `❌ Write TSM fallido: ${errMsg}`)
       return
     }
 
@@ -66,11 +78,28 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
     await completePendingWrite(settings, pending.writeId, result.ok, result.stats, result.error)
 
     if (result.ok) {
-      appendActivity('ok', `✅ Write TSM #${pending.writeId} completado`, `written=${result.stats?.written ?? 0} updated=${result.stats?.updated ?? 0}`)
-      notify('Goblin Companion', `✅ Grupos TSM actualizados: ${result.stats?.written ?? 0} nuevos, ${result.stats?.updated ?? 0} actualizados`)
+      const s = result.stats ?? {}
+      const detailStr = `Nuevos: ${s.written ?? 0} · Actualizados: ${s.updated ?? 0} · Movidos: ${s.moved ?? 0} · Limpiados: ${s.cleared ?? 0}`
+      updateLastTsmWrite({
+        at: new Date().toISOString(),
+        writeId: pending.writeId,
+        status: 'done',
+        detail: detailStr,
+        stats: s
+      })
+      appendActivity('ok', `✅ Write TSM #${pending.writeId} finalizado con éxito`, detailStr)
+      notify('Goblin Companion', `✅ Grupos TSM actualizados (#${pending.writeId}): ${detailStr}`)
     } else {
-      appendActivity('error', `❌ Write TSM #${pending.writeId} fallido`, result.error ?? 'Error desconocido')
-      notify('Goblin Companion', `❌ Write TSM fallido: ${result.error}`)
+      const errMsg = result.error ?? 'Error desconocido'
+      updateLastTsmWrite({
+        at: new Date().toISOString(),
+        writeId: pending.writeId,
+        status: 'failed',
+        detail: errMsg,
+        error: errMsg
+      })
+      appendActivity('error', `❌ Write TSM #${pending.writeId} fallido`, errMsg)
+      notify('Goblin Companion', `❌ Write TSM fallido (#${pending.writeId}): ${errMsg}`)
     }
   } finally {
     executing = false
@@ -174,6 +203,12 @@ async function executeTsmWrite(luaPath: string, pending: PendingWrite): Promise<
     for (const assignment of pending.assignments) {
       const { group, item_ids, clear_first } = assignment
       if (!group || !item_ids?.length) continue
+
+      appendActivity(
+        'info',
+        `✍️ Asignando a grupo "${group}"`,
+        `${item_ids.length} ítem(s) · modo: ${clear_first ? 'limpiar grupo primero' : 'combinar con existentes'}`
+      )
 
       if (clear_first) {
         for (const [itemId, groupName] of existing.entries()) {

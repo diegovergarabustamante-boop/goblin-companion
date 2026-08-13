@@ -34,6 +34,7 @@ interface SyncState {
   lastInventorySyncAt: string | null
   lastAccountingSyncAt: string | null
   queue: QueuedSync[]
+  lastTsmWrite: CompanionStatusSnapshot['lastTsmWrite']
 }
 
 const state: SyncState = {
@@ -44,7 +45,8 @@ const state: SyncState = {
   syncStep: null,
   lastInventorySyncAt: null,
   lastAccountingSyncAt: null,
-  queue: []
+  queue: [],
+  lastTsmWrite: null
 }
 
 const lastSyncedAtByPath = new Map<string, number>()
@@ -74,8 +76,14 @@ export function getSyncSnapshot(): CompanionStatusSnapshot {
     lastAccountingSyncAt: state.lastAccountingSyncAt,
     queueLength: state.queue.length,
     syncing: state.syncing,
-    syncStep: state.syncStep
+    syncStep: state.syncStep,
+    lastTsmWrite: state.lastTsmWrite
   }
+}
+
+export function updateLastTsmWrite(info: CompanionStatusSnapshot['lastTsmWrite']): void {
+  state.lastTsmWrite = info
+  emitStatus()
 }
 
 export function onSyncStatusChange(listener: (snapshot: CompanionStatusSnapshot) => void): void {

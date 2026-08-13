@@ -43,6 +43,14 @@ export interface CompanionStatusSnapshot {
   queueLength: number
   syncing: boolean
   syncStep?: string | null
+  lastTsmWrite?: {
+    at: string
+    writeId: number
+    status: 'processing' | 'done' | 'failed'
+    detail: string
+    stats?: Record<string, number>
+    error?: string
+  } | null
 }
 
 /** Resultado de golpear `GET /api/companion/ping/` (botón "Probar conexión"). */
