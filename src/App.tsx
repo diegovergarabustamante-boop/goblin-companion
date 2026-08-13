@@ -12,11 +12,11 @@ import TitleBar from './components/TitleBar'
 
 type TabId = AppTab
 
-const TABS: Array<{ id: TabId; label: string; disabled?: boolean }> = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'activity-log', label: 'Activity Log' },
-  { id: 'backups', label: 'Backups' },
-  { id: 'settings', label: 'Settings' }
+const TABS: Array<{ id: TabId; label: string; icon: string; disabled?: boolean }> = [
+  { id: 'dashboard', label: 'Dashboard', icon: '/images/goblin_assets/icon_home.png' },
+  { id: 'activity-log', label: 'Activity Log', icon: '/images/goblin_assets/icon_items.png' },
+  { id: 'backups', label: 'Backups', icon: '/images/goblin_assets/icon_inventory.png' },
+  { id: 'settings', label: 'Settings', icon: '/images/goblin_assets/icon_config.png' }
 ]
 
 function App(): JSX.Element {
@@ -41,16 +41,36 @@ function App(): JSX.Element {
   useEffect(() => window.goblin.onNavigate((tab) => setActiveTab(tab)), [])
   useEffect(() => window.goblin.onStatusChange((snapshot) => setStatus(snapshot)), [])
 
-  // Still loading
+  // Loading state
   if (!loaded || !settings) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#fbbf24', fontSize: '1em' }}>
-        🤖 Loading Goblin Companion…
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: 'var(--color-bg) url("/images/bg/fantasy_merchant_ledger.png") no-repeat center center fixed',
+          backgroundSize: 'cover',
+          color: '#fbbf24',
+          fontFamily: 'var(--font-header)',
+          gap: '16px'
+        }}
+      >
+        <img
+          src="/images/goblin_assets/coin_badge_1.png"
+          alt="Goblin"
+          style={{ width: 64, height: 64, filter: 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.7))' }}
+        />
+        <div style={{ fontSize: '1.2em', fontWeight: 700, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
+          Loading Goblin Companion…
+        </div>
       </div>
     )
   }
 
-  // Not logged in — show login screen first
+  // Not logged in — show login screen
   if (!settings.companionToken) {
     return (
       <LoginScreen
@@ -75,7 +95,8 @@ function App(): JSX.Element {
             disabled={tab.disabled}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.label}
+            <img src={tab.icon} alt="" className="tab-button__icon" />
+            <span>{tab.label}</span>
           </button>
         ))}
       </nav>
@@ -88,8 +109,9 @@ function App(): JSX.Element {
       <footer className="status-bar">
         <StatusDot status={status?.trayStatus ?? 'gray'} />
         <span>{status?.autoSyncEnabled ? 'Auto-sync active' : 'Auto-sync disabled'}</span>
-        <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.78em' }}>
-          👤 {settings.username}
+        <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: '0.78em', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <img src="/images/goblin_assets/user.png" alt="User" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+          <span>{settings.username}</span>
         </span>
       </footer>
     </div>

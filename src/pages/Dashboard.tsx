@@ -19,6 +19,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
   const autoSyncEnabled = status?.autoSyncEnabled ?? false
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
   const [preview, setPreview] = useState<TsmWritePreviewDto | null>(null)
 
   async function toggleAutoSync(): Promise<void> {
@@ -28,21 +29,32 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
   async function forceSync(): Promise<void> {
     setBusy('sync')
     setMessage('Syncing inventory + accounting…')
+    setMessageType(null)
     const invRes = await window.goblin.syncInventory()
     const accRes = await window.goblin.syncAccounting()
     setBusy(null)
     const ok = invRes.ok && accRes.ok
-    setMessage(ok ? '✓ Sync completed (inventory + accounting)' : `✗ ${invRes.error || accRes.error || 'Sync failed'}`)
+    if (ok) {
+      setMessage('Sync completed successfully (inventory + accounting)')
+      setMessageType('success')
+    } else {
+      setMessage(invRes.error || accRes.error || 'Sync failed')
+      setMessageType('error')
+    }
   }
 
   async function handlePreviewWrite(): Promise<void> {
     setBusy('write')
     setMessage(null)
+    setMessageType(null)
     setPreview(null)
     const result = await window.goblin.previewTsmWrite()
     setBusy(null)
     setPreview(result)
-    if (!result.ok) setMessage(`✗ ${result.error}`)
+    if (!result.ok) {
+      setMessage(result.error || 'Failed to preview TSM write')
+      setMessageType('error')
+    }
   }
 
   async function handleConfirmWrite(): Promise<void> {
@@ -58,9 +70,11 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
     setPreview(null)
     if (result.ok) {
       const stats = result.stats ?? {}
-      setMessage(`✓ Write OK — added=${stats.written ?? 0} updated=${stats.updated ?? 0} moved=${stats.moved ?? 0}`)
+      setMessage(`Write OK — added=${stats.written ?? 0} updated=${stats.updated ?? 0} moved=${stats.moved ?? 0}`)
+      setMessageType('success')
     } else {
-      setMessage(`✗ Write failed: ${result.error}`)
+      setMessage(`Write failed: ${result.error}`)
+      setMessageType('error')
     }
   }
 
@@ -68,50 +82,42 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
     status?.djangoReachable === null ? 'Unverified' : status?.djangoReachable ? 'OK' : 'Not responding'
 
   return (
-    <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Sub-tab Navigation Bar inside Dashboard */}
+    <div className="page">
+      {/* Sub-tab Navigation Bar */}
       <nav
         aria-label="Dashboard Sub-Sections"
         style={{
           display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid rgba(251, 191, 36, 0.25)',
-          paddingBottom: '8px'
+          gap: '10px',
+          borderBottom: '1.5px solid rgba(251, 191, 36, 0.25)',
+          paddingBottom: '10px'
         }}
       >
         <button
           type="button"
           onClick={() => setSubTab('overview')}
+          className="btn"
           style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: subTab === 'overview' ? '1px solid #fbbf24' : '1px solid transparent',
-            background: subTab === 'overview' ? 'rgba(251, 191, 36, 0.15)' : 'transparent',
-            color: subTab === 'overview' ? '#fbbf24' : '#94a3b8',
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontSize: '0.9em',
-            transition: 'all 0.2s ease'
+            background: subTab === 'overview' ? 'linear-gradient(135deg, rgba(50, 35, 8, 0.95) 0%, rgba(30, 20, 4, 0.98) 100%)' : 'rgba(12, 8, 3, 0.6)',
+            borderColor: subTab === 'overview' ? '#fbbf24' : 'rgba(251, 191, 36, 0.2)',
+            color: subTab === 'overview' ? '#fbbf24' : '#94a3b8'
           }}
         >
-          ⚙️ Status & Controls
+          <img src="/images/goblin_assets/wrench.png" alt="" />
+          <span>Status & Controls</span>
         </button>
         <button
           type="button"
           onClick={() => setSubTab('pnl')}
+          className="btn"
           style={{
-            padding: '8px 16px',
-            borderRadius: '6px',
-            border: subTab === 'pnl' ? '1px solid #c084fc' : '1px solid transparent',
-            background: subTab === 'pnl' ? 'rgba(192, 132, 252, 0.15)' : 'transparent',
-            color: subTab === 'pnl' ? '#c084fc' : '#94a3b8',
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontSize: '0.9em',
-            transition: 'all 0.2s ease'
+            background: subTab === 'pnl' ? 'linear-gradient(135deg, rgba(40, 20, 50, 0.95) 0%, rgba(20, 10, 30, 0.98) 100%)' : 'rgba(12, 8, 3, 0.6)',
+            borderColor: subTab === 'pnl' ? '#c084fc' : 'rgba(251, 191, 36, 0.2)',
+            color: subTab === 'pnl' ? '#c084fc' : '#94a3b8'
           }}
         >
-          📊 P&L (Profit & Loss) · Coming soon
+          <img src="/images/goblin_assets/coin_badge_1.png" alt="" />
+          <span>P&L Analytics</span>
         </button>
       </nav>
 
@@ -120,16 +126,18 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           <div className="glass-panel dashboard-grid">
             <div className="dashboard-card">
               <span className="dashboard-card__label">Auto-sync</span>
-              <label className="switch">
+              <label className="switch" style={{ margin: '4px 0' }}>
                 <input type="checkbox" checked={autoSyncEnabled} onChange={() => void toggleAutoSync()} />
                 <span className="switch__track" />
               </label>
-              <span className="dashboard-card__hint">{autoSyncEnabled ? 'On' : 'Off'}</span>
+              <span className="dashboard-card__hint">{autoSyncEnabled ? 'Active' : 'Disabled'}</span>
             </div>
 
             <div className="dashboard-card">
               <span className="dashboard-card__label">Django Status</span>
-              <span className="dashboard-card__value">{djangoLabel}</span>
+              <span className="dashboard-card__value" style={{ color: status?.djangoReachable ? '#4ade80' : '#f87171' }}>
+                {djangoLabel}
+              </span>
               <span className="dashboard-card__hint">{status?.syncing ? 'Syncing…' : ' '}</span>
             </div>
 
@@ -149,71 +157,64 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
 
             <div className="dashboard-card">
               <span className="dashboard-card__label">Queue</span>
-              <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
+              <span className="dashboard-card__value" style={{ color: '#fbbf24' }}>
+                {status?.queueLength ?? 0}
+              </span>
               <span className="dashboard-card__hint">pending</span>
             </div>
           </div>
 
-          {/* Card / Banner de Última Escritura TSM (Web -> Companion Sync) */}
+          {/* Banner de Última Escritura TSM */}
           <div
             className="glass-panel"
             style={{
-              padding: '14px 18px',
-              borderRadius: '10px',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '14px',
               border: status?.lastTsmWrite?.status === 'failed'
-                ? '1px solid rgba(239, 68, 68, 0.4)'
+                ? '1.5px solid rgba(239, 68, 68, 0.45)'
                 : status?.lastTsmWrite?.status === 'processing'
-                ? '1px solid rgba(96, 165, 250, 0.4)'
-                : '1px solid rgba(74, 222, 128, 0.25)',
+                ? '1.5px solid rgba(96, 165, 250, 0.45)'
+                : '1.5px solid rgba(34, 197, 94, 0.35)',
               background: status?.lastTsmWrite?.status === 'failed'
                 ? 'rgba(239, 68, 68, 0.08)'
                 : status?.lastTsmWrite?.status === 'processing'
                 ? 'rgba(96, 165, 250, 0.08)'
-                : 'rgba(74, 222, 128, 0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
+                : 'rgba(20, 15, 8, 0.85)'
             }}
           >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '1.1em' }}>
-                  {status?.lastTsmWrite?.status === 'processing'
-                    ? '⚡'
-                    : status?.lastTsmWrite?.status === 'failed'
-                    ? '❌'
-                    : status?.lastTsmWrite?.status === 'done'
-                    ? '✅'
-                    : '✍️'}
-                </span>
-                <strong style={{ fontSize: '0.95em', color: '#f1f5f9' }}>
-                  Web TSM Write {status?.lastTsmWrite?.writeId ? `(#${status.lastTsmWrite.writeId})` : ''}
-                </strong>
-                {status?.lastTsmWrite?.at ? (
-                  <span style={{ fontSize: '0.78em', color: '#94a3b8' }}>
-                    · {new Date(status.lastTsmWrite.at).toLocaleTimeString()}
-                  </span>
-                ) : null}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <img
+                src="/images/goblin_assets/TSM.png"
+                alt="TSM"
+                style={{ width: 36, height: 36, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.4))' }}
+              />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
+                  <strong style={{ fontSize: '0.95em', color: '#fbbf24', fontFamily: 'var(--font-header)' }}>
+                    Web TSM Write {status?.lastTsmWrite?.writeId ? `(#${status.lastTsmWrite.writeId})` : ''}
+                  </strong>
+                  {status?.lastTsmWrite?.at ? (
+                    <span style={{ fontSize: '0.78em', color: '#94a3b8' }}>
+                      · {new Date(status.lastTsmWrite.at).toLocaleTimeString()}
+                    </span>
+                  ) : null}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85em', color: '#cbd5e1' }}>
+                  {status?.lastTsmWrite
+                    ? status.lastTsmWrite.detail
+                    : 'No recent write orders. Write groups from the web Cart or use manual preview below.'}
+                </p>
               </div>
-              <p style={{ margin: 0, fontSize: '0.85em', color: '#cbd5e1' }}>
-                {status?.lastTsmWrite
-                  ? status.lastTsmWrite.detail
-                  : 'No recent write orders. Write groups from the web Cart or use manual preview below.'}
-              </p>
             </div>
             {status?.lastTsmWrite?.status === 'processing' ? (
-              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(96, 165, 250, 0.2)', color: '#60a5fa' }}>
-                Executing…
-              </span>
+              <span className="gc-badge gc-badge--warn">Executing…</span>
             ) : status?.lastTsmWrite?.status === 'done' ? (
-              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(74, 222, 128, 0.2)', color: '#4ade80' }}>
-                Completed
-              </span>
+              <span className="gc-badge gc-badge--ok">Completed</span>
             ) : status?.lastTsmWrite?.status === 'failed' ? (
-              <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
-                Failed
-              </span>
+              <span className="gc-badge gc-badge--error">Failed</span>
             ) : null}
           </div>
 
@@ -224,23 +225,29 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
               disabled={Boolean(status?.syncing || busy !== null)}
               onClick={() => void forceSync()}
             >
-              {status?.syncing || busy === 'sync' ? '⏳ Syncing (inventory + accounting)…' : 'Force sync now'}
+              <img src="/images/goblin_assets/search.png" alt="" />
+              <span>{status?.syncing || busy === 'sync' ? 'Syncing (inventory + accounting)…' : 'Force sync now'}</span>
             </button>
           </div>
 
           {message ? (
-            <div
-              className={`activity-item ${message.startsWith('✓') ? 'activity-item--success' : 'activity-item--error'}`}
-              style={{ padding: '10px 14px' }}
-            >
+            <div className={`activity-item ${messageType === 'success' ? 'activity-item--success' : messageType === 'error' ? 'activity-item--error' : 'activity-item--info'}`}>
+              <img
+                src={messageType === 'success' ? '/images/goblin_assets/success.png' : messageType === 'error' ? '/images/goblin_assets/failure.png' : '/images/goblin_assets/info.png'}
+                alt=""
+                className="activity-item__icon"
+              />
               <span className="activity-item__message">{message}</span>
             </div>
           ) : null}
 
           {/* SECCIÓN WRITE TO TSM GROUPS */}
           <section className="glass-panel">
-            <h2>Write TSM Groups</h2>
-            <p className="page__note">
+            <h2>
+              <img src="/images/goblin_assets/edit.png" alt="" />
+              <span>Write TSM Groups</span>
+            </h2>
+            <p className="page__note" style={{ marginBottom: '14px' }}>
               Single-group shortcut: uses the saved Cart mapping + all items in cart. For multi-group, write from web Cart (the companion will automatically create a pre-write backup).
             </p>
             <div className="button-row">
@@ -250,7 +257,8 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                 disabled={busy !== null}
                 onClick={() => void handlePreviewWrite()}
               >
-                {busy === 'write' ? 'Preparing…' : 'Preview Write…'}
+                <img src="/images/goblin_assets/wrench.png" alt="" />
+                <span>{busy === 'write' ? 'Preparing…' : 'Preview Write…'}</span>
               </button>
               {preview?.ok ? (
                 <button
@@ -259,19 +267,21 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                   disabled={busy !== null}
                   onClick={() => void handleConfirmWrite()}
                 >
-                  Confirm Write
+                  <img src="/images/goblin_assets/save.png" alt="" />
+                  <span>Confirm Write</span>
                 </button>
               ) : null}
             </div>
             {preview?.ok ? (
-              <div className="write-preview" style={{ marginTop: 12 }}>
-                <p className="page__note">
+              <div className="write-preview" style={{ marginTop: 14 }}>
+                <p className="page__note" style={{ marginBottom: 8 }}>
                   {preview.itemCount ?? 0} items · {preview.preview?.length ?? 0} group(s) · affected≈
                   {preview.totalItemsAffected ?? '—'}
                 </p>
                 <ul className="activity-list">
                   {(preview.preview ?? []).map((row) => (
                     <li key={row.group} className="activity-item activity-item--info">
+                      <img src="/images/goblin_assets/info.png" alt="" className="activity-item__icon" />
                       <span className="activity-item__message">{row.group}</span>
                       <span className="activity-item__detail">
                         {row.details} · {row.total_items} items
@@ -293,18 +303,22 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
         <section
           className="glass-panel"
           style={{
-            padding: '36px 24px',
+            padding: '40px 24px',
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: '16px',
-            border: '1px solid rgba(192, 132, 252, 0.35)',
-            background: 'linear-gradient(135deg, rgba(24, 17, 35, 0.6) 0%, rgba(12, 8, 20, 0.8) 100%)'
+            border: '1.5px solid rgba(192, 132, 252, 0.4)',
+            background: 'linear-gradient(135deg, rgba(28, 18, 40, 0.9) 0%, rgba(14, 8, 22, 0.95) 100%)'
           }}
         >
-          <div style={{ fontSize: '2.5em', margin: 0 }}>📊</div>
-          <h2 style={{ margin: 0, color: '#c084fc', fontSize: '1.4em' }}>
+          <img
+            src="/images/goblin_assets/coin_badge_1.png"
+            alt="Gold Coin"
+            style={{ width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 0 12px rgba(192, 132, 252, 0.6))' }}
+          />
+          <h2 style={{ margin: 0, color: '#c084fc', fontSize: '1.5em', justifyContent: 'center' }}>
             Profit & Loss (P&L) Analytics
           </h2>
           <p style={{ maxWidth: '520px', margin: 0, color: '#94a3b8', fontSize: '0.92em', lineHeight: 1.6 }}>
@@ -312,14 +326,14 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           </p>
           <div
             style={{
-              padding: '6px 16px',
+              padding: '6px 18px',
               borderRadius: '999px',
               background: 'rgba(192, 132, 252, 0.15)',
               border: '1px solid rgba(192, 132, 252, 0.4)',
               color: '#e9d5ff',
               fontSize: '0.82em',
               fontWeight: 700,
-              letterSpacing: '0.05em',
+              letterSpacing: '0.06em',
               textTransform: 'uppercase'
             }}
           >

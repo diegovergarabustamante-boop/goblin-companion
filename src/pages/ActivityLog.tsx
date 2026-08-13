@@ -10,6 +10,20 @@ const FILTERS: Array<{ id: 'all' | ActivityLevel; label: string }> = [
   { id: 'error', label: 'Error' }
 ]
 
+function getIconForLevel(level: ActivityLevel): string {
+  switch (level) {
+    case 'success':
+      return '/images/goblin_assets/success.png'
+    case 'warn':
+      return '/images/goblin_assets/warning.png'
+    case 'error':
+      return '/images/goblin_assets/failure.png'
+    case 'info':
+    default:
+      return '/images/goblin_assets/info.png'
+  }
+}
+
 function ActivityLog(): JSX.Element {
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [filter, setFilter] = useState<'all' | ActivityLevel>('all')
@@ -31,7 +45,7 @@ function ActivityLog(): JSX.Element {
 
   return (
     <div className="page">
-      <div className="button-row" style={{ marginBottom: 12 }}>
+      <div className="button-row" style={{ marginBottom: 14 }}>
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -42,15 +56,31 @@ function ActivityLog(): JSX.Element {
             {f.label}
           </button>
         ))}
-        <button type="button" className="btn" onClick={() => void window.goblin.openActivityLogFolder()}>
-          Open Folder
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void window.goblin.openActivityLogFolder()}
+          style={{ marginLeft: 'auto' }}
+        >
+          <img src="/images/goblin_assets/bag.png" alt="" style={{ width: 16, height: 16 }} />
+          <span>Open Folder</span>
         </button>
-        <button type="button" className="btn" onClick={() => void handleClear()} disabled={events.length === 0}>
-          Clear
+        <button
+          type="button"
+          className="btn btn--danger"
+          onClick={() => void handleClear()}
+          disabled={events.length === 0}
+        >
+          <img src="/images/goblin_assets/clear.png" alt="" style={{ width: 16, height: 16 }} />
+          <span>Clear</span>
         </button>
       </div>
 
       <div className="glass-panel activity-log">
+        <h2 style={{ marginBottom: 14 }}>
+          <img src="/images/goblin_assets/icon_items.png" alt="" />
+          <span>Live Activity Events</span>
+        </h2>
         {visible.length === 0 ? (
           <div className="empty-state">
             <p>
@@ -63,6 +93,11 @@ function ActivityLog(): JSX.Element {
           <ul className="activity-list">
             {visible.map((event) => (
               <li key={event.id} className={`activity-item activity-item--${event.level}`}>
+                <img
+                  src={getIconForLevel(event.level)}
+                  alt=""
+                  className="activity-item__icon"
+                />
                 <time dateTime={event.at}>{new Date(event.at).toLocaleTimeString()}</time>
                 <span className="activity-item__message">{event.message}</span>
                 {event.detail ? <span className="activity-item__detail">{event.detail}</span> : null}

@@ -95,7 +95,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
   if (!settings) {
     return (
       <div className="page">
-        <p>Loading…</p>
+        <p className="page__note">Loading settings…</p>
       </div>
     )
   }
@@ -106,7 +106,10 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
     <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* SECCIÓN 1: LOGIN Y CONEXIÓN */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2>🔐 Web Connection & Account</h2>
+        <h2>
+          <img src="/images/goblin_assets/database.png" alt="" />
+          <span>Web Connection & Account</span>
+        </h2>
 
         {isLoggedIn ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -117,25 +120,27 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 justifyContent: 'space-between',
                 padding: '12px 16px',
                 borderRadius: '8px',
-                background: 'rgba(34,197,94,0.12)',
-                border: '1px solid rgba(34,197,94,0.3)'
+                background: 'rgba(34, 197, 94, 0.12)',
+                border: '1px solid rgba(34, 197, 94, 0.3)'
               }}
             >
               <div>
-                <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  👤 Active Session: {settings.username || 'Web User'}
+                <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <img src="/images/goblin_assets/user.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                  <span>Active Session: {settings.username || 'Web User'}</span>
                 </span>
-                <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
+                <span style={{ color: '#94a3b8', fontSize: '0.82em', display: 'block', marginTop: '2px' }}>
                   Server: <code>{settings.djangoUrl}</code>
                 </span>
               </div>
               <button
                 type="button"
-                className="button secondary"
+                className="btn btn--danger"
                 onClick={() => void handleLogout()}
-                style={{ padding: '6px 12px', fontSize: '0.82em', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                style={{ padding: '6px 14px', fontSize: '0.82em' }}
               >
-                🚪 Log Out
+                <img src="/images/goblin_assets/logout.png" alt="" style={{ width: 14, height: 14 }} />
+                <span>Log Out</span>
               </button>
             </div>
 
@@ -151,20 +156,21 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
             <div className="button-row">
               <button type="button" className="btn" onClick={() => void handleTestConnection()} disabled={testState === 'testing'}>
-                {testState === 'testing' ? 'Testing…' : 'Test connection'}
+                <img src="/images/goblin_assets/search.png" alt="" style={{ width: 16, height: 16 }} />
+                <span>{testState === 'testing' ? 'Testing…' : 'Test Connection'}</span>
               </button>
               {testResult && (
                 <span className={testResult.ok ? 'test-result test-result--ok' : 'test-result test-result--error'}>
                   {testResult.ok
-                    ? `✓ Connected${testResult.user ? ` as ${testResult.user}` : ''}`
-                    : `✗ ${testResult.error}`}
+                    ? `Connected${testResult.user ? ` as ${testResult.user}` : ''}`
+                    : testResult.error}
                 </span>
               )}
             </div>
           </div>
         ) : (
           /* FORMULARIO DE LOGIN SI NO HAY SESIÓN */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <p className="page__note" style={{ margin: 0 }}>
               Sign in with the same account credentials you registered with on the <strong>Auction House Profit</strong> web app.
             </p>
@@ -204,7 +210,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
             {loginError ? (
               <div style={{ color: '#f87171', fontSize: '0.85em', fontWeight: 600 }}>
-                ✗ {loginError}
+                {loginError}
               </div>
             ) : null}
 
@@ -215,7 +221,8 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               onClick={() => void handleLogin()}
               style={{ marginTop: '6px' }}
             >
-              {loginBusy ? '🔐 Authenticating…' : '🔐 Sign In'}
+              <img src="/images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
+              <span>{loginBusy ? 'Authenticating…' : 'Sign In'}</span>
             </button>
           </div>
         )}
@@ -223,7 +230,10 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
       {/* SECCIÓN 2: WOW SAVEDVARIABLES */}
       <section className="glass-panel">
-        <h2>WoW SavedVariables</h2>
+        <h2>
+          <img src="/images/goblin_assets/TSM.png" alt="" />
+          <span>WoW SavedVariables</span>
+        </h2>
         <label className="field">
           <span>SavedVariables Folder (not the .lua file)</span>
           <input
@@ -239,13 +249,16 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             checked={settings.autoSyncEnabled}
             onChange={(event) => patch({ autoSyncEnabled: event.target.checked })}
           />
-          <span>Auto-sync when .lua changes are detected</span>
+          <span style={{ color: '#f3f4f6' }}>Auto-sync when .lua changes are detected</span>
         </label>
       </section>
 
       {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <h2>🔔 Notifications, Logs & System</h2>
+        <h2>
+          <img src="/images/goblin_assets/info.png" alt="" />
+          <span>Notifications, Logs & System</span>
+        </h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <label className="checkbox-field">
@@ -254,7 +267,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               checked={settings.notificationsEnabled}
               onChange={(event) => patch({ notificationsEnabled: event.target.checked })}
             />
-            <span style={{ fontWeight: 700 }}>Enable native Windows desktop notifications</span>
+            <span style={{ fontWeight: 700, color: '#f3f4f6' }}>Enable native Windows desktop notifications</span>
           </label>
 
           {/* Sub-toggles granulares */}
@@ -276,7 +289,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnSync: e.target.checked })}
               />
-              <span>🔄 Inventory and accounting syncs</span>
+              <span>Inventory and accounting syncs</span>
             </label>
 
             <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
@@ -286,7 +299,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnWrite: e.target.checked })}
               />
-              <span>✍️ TSM write orders received from web</span>
+              <span>TSM write orders received from web</span>
             </label>
 
             <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
@@ -296,7 +309,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnError: e.target.checked })}
               />
-              <span>⚠️ Error alerts and failures</span>
+              <span>Error alerts and failures</span>
             </label>
           </div>
         </div>
@@ -304,8 +317,8 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
         <hr style={{ borderColor: 'rgba(251, 191, 36, 0.15)', margin: '4px 0' }} />
 
         <div>
-          <span style={{ fontSize: '0.88em', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-            📜 Activity Log Retention
+          <span style={{ fontSize: '0.88em', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px', fontFamily: 'var(--font-header)' }}>
+            Activity Log Retention
           </span>
           <p style={{ margin: 0, fontSize: '0.82em', color: '#94a3b8' }}>
             The system preserves a <strong>maximum of 300 events</strong> in memory and on disk. As new records arrive, older entries are automatically discarded.
@@ -320,12 +333,13 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             checked={settings.startWithWindows}
             onChange={(event) => patch({ startWithWindows: event.target.checked })}
           />
-          <span>Start with Windows (minimized to tray)</span>
+          <span style={{ color: '#f3f4f6' }}>Start with Windows (minimized to tray)</span>
         </label>
       </section>
 
-      <button type="button" className="btn btn--primary" onClick={() => void handleSave()}>
-        {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : 'Save changes'}
+      <button type="button" className="btn btn--primary" onClick={() => void handleSave()} style={{ padding: '12px 24px', fontSize: '0.95em' }}>
+        <img src="/images/goblin_assets/save.png" alt="" style={{ width: 18, height: 18 }} />
+        <span>{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save Changes'}</span>
       </button>
     </div>
   )

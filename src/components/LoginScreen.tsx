@@ -42,7 +42,6 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
 
   return (
     <div className="app-shell">
-      {/* TitleBar keeps the window draggable/closable/minimizable even on login */}
       <TitleBar status={null} />
 
       <div
@@ -52,26 +51,51 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px',
-          background: 'linear-gradient(135deg, rgba(12, 8, 4, 0.98) 0%, rgba(24, 17, 8, 0.99) 100%)'
+          background: 'var(--color-bg) url("/images/bg/fantasy_merchant_ledger.png") no-repeat center center fixed',
+          backgroundSize: 'cover',
+          position: 'relative'
         }}
       >
+        {/* Dark overlay for login screen backdrop */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(11, 15, 25, 0.78)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 0
+          }}
+        />
+
         <div
           className="glass-panel"
           style={{
             width: '100%',
             maxWidth: '420px',
-            padding: '32px 28px',
+            padding: '36px 30px',
             borderRadius: '16px',
-            border: '1.5px solid rgba(251, 191, 36, 0.45)',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.85), 0 0 20px rgba(251, 191, 36, 0.2)',
+            border: '1.5px solid var(--border-color-glow)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.85), 0 0 25px rgba(251, 191, 36, 0.25)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px'
+            gap: '20px',
+            position: 'relative',
+            zIndex: 1
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5em', marginBottom: '8px' }}>🤖</div>
-            <h2 style={{ margin: 0, color: '#fbbf24', fontSize: '1.4em', letterSpacing: '0.02em' }}>
+            <img
+              src="/images/goblin_assets/coin_badge_1.png"
+              alt="Goblin"
+              style={{
+                width: 64,
+                height: 64,
+                margin: '0 auto 12px',
+                display: 'block',
+                filter: 'drop-shadow(0 0 10px rgba(251, 191, 36, 0.6))'
+              }}
+            />
+            <h2 style={{ margin: 0, color: '#fbbf24', fontSize: '1.5em', fontFamily: 'var(--font-display)', justifyContent: 'center' }}>
               Goblin Companion
             </h2>
             <p style={{ margin: '6px 0 0', color: '#94a3b8', fontSize: '0.86em' }}>
@@ -81,7 +105,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
 
           <form onSubmit={(e) => void handleLogin(e)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Web Server URL</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600, fontFamily: 'var(--font-header)' }}>Web Server URL</span>
               <input
                 type="text"
                 value={djangoUrl}
@@ -91,7 +115,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
             </label>
 
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Web Username</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600, fontFamily: 'var(--font-header)' }}>Web Username</span>
               <input
                 type="text"
                 value={username}
@@ -102,7 +126,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
             </label>
 
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Password</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600, fontFamily: 'var(--font-header)' }}>Password</span>
               <input
                 type="password"
                 value={password}
@@ -114,16 +138,20 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
             {error ? (
               <div
                 style={{
-                  padding: '8px 12px',
+                  padding: '10px 14px',
                   borderRadius: '6px',
                   background: 'rgba(239, 68, 68, 0.15)',
                   border: '1px solid rgba(239, 68, 68, 0.4)',
                   color: '#f87171',
                   fontSize: '0.85em',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}
               >
-                ✗ {error}
+                <img src="/images/goblin_assets/failure.png" alt="" style={{ width: 16, height: 16 }} />
+                <span>{error}</span>
               </div>
             ) : null}
 
@@ -132,18 +160,14 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
               className="btn btn--primary"
               disabled={busy}
               style={{
-                padding: '10px 16px',
+                padding: '12px 18px',
                 fontSize: '0.95em',
                 fontWeight: 700,
-                background: busy ? 'rgba(100,100,100,0.4)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: busy ? '#94a3b8' : '#000',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: busy ? 'not-allowed' : 'pointer',
                 marginTop: '4px'
               }}
             >
-              {busy ? '🔐 Verifying credentials…' : '🔐 Sign In'}
+              <img src="/images/goblin_assets/login.png" alt="" style={{ width: 18, height: 18 }} />
+              <span>{busy ? 'Verifying credentials…' : 'Sign In'}</span>
             </button>
           </form>
         </div>

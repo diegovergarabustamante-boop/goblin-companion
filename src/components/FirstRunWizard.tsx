@@ -1,6 +1,6 @@
 import { useState, type JSX } from 'react'
 
-import type { CompanionSettings, DjangoPingResult } from '../../shared/settings'
+import type { CompanionSettings } from '../../shared/settings'
 
 interface FirstRunWizardProps {
   initial: CompanionSettings
@@ -11,17 +11,15 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<CompanionSettings>(initial)
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<DjangoPingResult | null>(null)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Login inputs
   const [user, setUser] = useState(initial.username || '')
   const [pass, setPass] = useState('')
-  const [loginError, setLoginError] = useState<string | null>(null)
 
   function patch(update: Partial<CompanionSettings>): void {
     setDraft((current) => ({ ...current, ...update }))
-    setTestResult(null)
   }
 
   async function handleLogin(): Promise<void> {
@@ -40,8 +38,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
           username: result.username ?? user.trim(),
           companionToken: result.token!
         }))
-        setTestResult({ ok: true, user: result.username })
-        setStep(1) // Move to next step!
+        setStep(1) // Move to next step
       } else {
         setLoginError(result.error || 'Credenciales inválidas')
       }
@@ -50,17 +47,6 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
     } finally {
       setTesting(false)
     }
-  }
-
-  async function handleTest(): Promise<void> {
-    setTesting(true)
-    setTestResult(null)
-    const result = await window.goblin.testConnection({
-      djangoUrl: draft.djangoUrl,
-      companionToken: draft.companionToken
-    })
-    setTestResult(result)
-    setTesting(false)
   }
 
   async function finish(): Promise<void> {
@@ -75,12 +61,27 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
 
   return (
     <div className="wizard-overlay" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
-      <div className="wizard-card glass-panel">
+      <div className="wizard-card glass-panel" style={{ border: '1.5px solid var(--border-color-glow)' }}>
         <p className="wizard-kicker">Goblin Companion</p>
         <h2 id="wizard-title">
-          {step === 0 && '🔐 Iniciar Sesión con tu Cuenta Web'}
-          {step === 1 && '📁 Carpeta de WoW'}
-          {step === 2 && '⚙️ Preferencias'}
+          {step === 0 && (
+            <>
+              <img src="/images/goblin_assets/database.png" alt="" style={{ width: 22, height: 22 }} />
+              <span>Iniciar Sesión con tu Cuenta Web</span>
+            </>
+          )}
+          {step === 1 && (
+            <>
+              <img src="/images/goblin_assets/TSM.png" alt="" style={{ width: 22, height: 22 }} />
+              <span>Carpeta de WoW</span>
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <img src="/images/goblin_assets/icon_config.png" alt="" style={{ width: 22, height: 22 }} />
+              <span>Preferencias</span>
+            </>
+          )}
         </h2>
 
         {step === 0 ? (
@@ -120,20 +121,23 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
             </label>
 
             {loginError ? (
-              <div style={{ color: '#f87171', fontSize: '0.85em', fontWeight: 600 }}>
-                ✗ {loginError}
+              <div style={{ color: '#f87171', fontSize: '0.85em', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <img src="/images/goblin_assets/failure.png" alt="" style={{ width: 14, height: 14 }} />
+                <span>{loginError}</span>
               </div>
             ) : null}
 
             {draft.companionToken ? (
-              <div style={{ color: '#4ade80', fontSize: '0.85em', fontWeight: 600 }}>
-                ✓ Conectado como {draft.username || 'Usuario Web'}
+              <div style={{ color: '#4ade80', fontSize: '0.85em', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <img src="/images/goblin_assets/success.png" alt="" style={{ width: 14, height: 14 }} />
+                <span>Conectado como {draft.username || 'Usuario Web'}</span>
               </div>
             ) : null}
 
-            <div className="button-row">
+            <div className="button-row" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn--primary" disabled={testing} onClick={() => void handleLogin()}>
-                {testing ? '🔐 Verificando…' : '🔐 Iniciar Sesión'}
+                <img src="/images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
+                <span>{testing ? 'Verificando…' : 'Iniciar Sesión'}</span>
               </button>
             </div>
           </>
@@ -165,7 +169,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
                 checked={draft.autoSyncEnabled}
                 onChange={(e) => patch({ autoSyncEnabled: e.target.checked })}
               />
-              <span>Auto-sync al detectar cambios en SavedVariables</span>
+              <span style={{ color: '#f3f4f6' }}>Auto-sync al detectar cambios en SavedVariables</span>
             </label>
             <label className="checkbox-field">
               <input
@@ -173,7 +177,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
                 checked={draft.notificationsEnabled}
                 onChange={(e) => patch({ notificationsEnabled: e.target.checked })}
               />
-              <span>Notificaciones de escritorio</span>
+              <span style={{ color: '#f3f4f6' }}>Notificaciones de escritorio</span>
             </label>
           </>
         ) : null}
@@ -196,7 +200,8 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
             </button>
           ) : (
             <button type="button" className="btn btn--primary" disabled={saving} onClick={() => void finish()}>
-              {saving ? 'Guardando…' : 'Comenzar a usar'}
+              <img src="/images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
+              <span>{saving ? 'Guardando…' : 'Comenzar a usar'}</span>
             </button>
           )}
         </div>
