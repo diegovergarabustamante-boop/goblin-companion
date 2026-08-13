@@ -79,7 +79,7 @@ export default function Backups(): JSX.Element {
     try {
       const result = await window.goblin.restoreBackup(b.fileName, b.kind)
       if (result.ok) {
-        setMessage(`Successfully restored "${b.fileName}" to ${result.restoredTo || b.targetFilename}`)
+        setMessage(`Successfully restored "${b.fileName}" to ${b.targetFilename}`)
         setMessageType('success')
         reloadAll()
       } else {

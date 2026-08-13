@@ -1,5 +1,5 @@
 import { Menu, Tray, app, shell, type BrowserWindow } from 'electron'
-
+import type { AppTab } from '../../shared/ipc'
 import type { TrayStatus } from '../../shared/settings'
 import { markQuitting } from './app-state'
 import { getTrayIcon } from './tray-icon'
@@ -13,7 +13,7 @@ const STATUS_LABEL: Record<TrayStatus, string> = {
 
 interface CreateTrayOptions {
   getWindow: () => BrowserWindow | null
-  showWindowOnTab: (tab: 'dashboard' | 'activity-log' | 'controls' | 'settings') => void
+  showWindowOnTab: (tab: AppTab) => void
   getDjangoUrl: () => string
   syncInventory: () => void
   syncAccounting: () => void

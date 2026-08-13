@@ -120,15 +120,19 @@ export function startLocalServer(port = getSettings().localServerPort): void {
 
     if (method === 'POST' && url.pathname === '/backup') {
       try {
-        const backup = createRotatingBackup()
+        const backups = createRotatingBackup()
+        const primary = backups[0]
         sendJson(res, 200, {
           ok: true,
-          backup: {
-            id: backup.id,
-            fileName: backup.fileName,
-            createdAt: backup.createdAt,
-            sizeBytes: backup.sizeBytes
-          }
+          backups,
+          backup: primary
+            ? {
+                id: primary.id,
+                fileName: primary.fileName,
+                createdAt: primary.createdAt,
+                sizeBytes: primary.sizeBytes
+              }
+            : null
         })
       } catch (error) {
         sendJson(res, 500, {

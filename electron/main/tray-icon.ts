@@ -40,7 +40,7 @@ export function getTrayIcon(status: TrayStatus): NativeImage {
 
   if (assetPath) {
     const baseImg = nativeImage.createFromPath(assetPath)
-    const resized = baseImg.resize({ width: 32, height: 32, quality: 'high' })
+    const resized = baseImg.resize({ width: 32, height: 32, quality: 'best' })
     const buffer = resized.toBitmap()
 
     const [r, g, b] = STATUS_COLOR[status]

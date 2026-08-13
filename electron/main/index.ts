@@ -174,7 +174,7 @@ async function runTsmWriteConfirm(assignments: Parameters<typeof executeTsmWrite
   const filePath = resolveLuaPath('inventory')
   if (!filePath) return { ok: false, error: 'SavedVariables not configured' }
   try {
-    createRotatingBackup(filePath)
+    createRotatingBackup('write', filePath)
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
@@ -304,7 +304,7 @@ if (!gotLock) {
       getDjangoUrl: () => getSettings().djangoUrl,
       syncInventory: () => void runManualSync('inventory'),
       syncAccounting: () => void runManualSync('accounting'),
-      writeTsm: () => showWindowOnTab('controls')
+      writeTsm: () => showWindowOnTab('backups')
     })
 
     wireWatcher()

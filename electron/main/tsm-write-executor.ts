@@ -87,7 +87,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
         detail: detailStr,
         stats: s
       })
-      appendActivity('ok', `✅ TSM Write #${pending.writeId} completed successfully`, detailStr)
+      appendActivity('info', `✅ TSM Write #${pending.writeId} completed successfully`, detailStr)
       notify('Goblin Companion', `✅ TSM Groups updated (#${pending.writeId}): ${detailStr}`, 'write')
     } else {
       const errMsg = result.error ?? 'Unknown error'
