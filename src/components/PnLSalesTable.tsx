@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from 'react'
 import type { RecentSaleItemDto } from '../../electron/main/http-client'
 
+// ─── Local Timezone Formatter ───────────────────────────────────────────
+function formatLocalDateTime(ts?: number, fallbackStr?: string): string {
+  if (ts && ts > 0) {
+    const dt = new Date(ts * 1000)
+    if (!isNaN(dt.getTime())) {
+      const year = dt.getFullYear()
+      const month = String(dt.getMonth() + 1).padStart(2, '0')
+      const day = String(dt.getDate()).padStart(2, '0')
+      const hours = String(dt.getHours()).padStart(2, '0')
+      const minutes = String(dt.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day} ${hours}:${minutes}`
+    }
+  }
+  return fallbackStr || 'N/A'
+}
+
 // ─── Coin Badge ──────────────────────────────────────────────────────────────
 export function CoinBadge({ copper }: { copper: number }) {
   const isNegative = copper < 0
@@ -97,7 +113,7 @@ function WowItemLinkCell({
   const wowUrl = blizzardId ? `https://www.wowhead.com/item=${blizzardId}` : null
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', overflow: 'hidden' }}>
       <img
         src={iconUrl}
         alt=""
@@ -285,11 +301,12 @@ export function PnLSalesTable() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
-                  <th style={thStyle('left', '32%')}>Item Name</th>
-                  <th style={thStyle('center', '16%')}>Date / Time</th>
-                  <th style={thStyle('center', '14%')}>Posts Before Sale</th>
-                  <th style={thStyle('center', '13%')}>Buy Price</th>
-                  <th style={thStyle('center', '13%')}>Sell Price</th>
+                  <th style={thStyle('center', '26%')}>Item Name</th>
+                  <th style={thStyle('center', '14%')}>Buy Date</th>
+                  <th style={thStyle('center', '14%')}>Sell Date</th>
+                  <th style={thStyle('center', '12%')}>Posts Before Sale</th>
+                  <th style={thStyle('center', '11%')}>Buy Price</th>
+                  <th style={thStyle('center', '11%')}>Sell Price</th>
                   <th style={thStyle('center', '12%', true)}>Net Profit / Loss</th>
                 </tr>
               </thead>
@@ -307,7 +324,7 @@ export function PnLSalesTable() {
                       onMouseOut={(e) => { e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)' }}
                     >
                       {/* Item cell with icon, quality color & Wowhead tooltip */}
-                      <td style={{ ...tdStyle('left'), overflow: 'visible' }}>
+                      <td style={{ ...tdStyle('center'), overflow: 'visible' }}>
                         <WowItemLinkCell
                           blizzardId={bId}
                           itemName={sale.itemName}
@@ -315,8 +332,17 @@ export function PnLSalesTable() {
                         />
                       </td>
 
-                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>{sale.soldAt || 'Unknown'}</td>
+                      {/* Buy Date (formatted in user's local PC timezone) */}
+                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>
+                        {formatLocalDateTime(sale.buyTimeTs, sale.boughtAt)}
+                      </td>
 
+                      {/* Sell Date (formatted in user's local PC timezone) */}
+                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>
+                        {formatLocalDateTime(sale.sellTimeTs, sale.soldAt)}
+                      </td>
+
+                      {/* Posts Before Sale */}
                       <td style={tdStyle('center')}>
                         <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: '0.82em', fontWeight: 700, background: sale.postsBeforeSale > 5 ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)', color: sale.postsBeforeSale > 5 ? '#fbbf24' : '#60a5fa', border: sale.postsBeforeSale > 5 ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(96,165,250,0.3)' }}>
                           {sale.postsBeforeSale} {sale.postsBeforeSale === 1 ? 'post' : 'posts'}

@@ -419,6 +419,9 @@ export interface RecentSaleItemDto {
   itemId: string
   blizzardId?: number
   itemName: string
+  buyTimeTs?: number
+  boughtAt?: string
+  sellTimeTs?: number
   soldAt: string
   quantity: number
   buyPriceCopper: number
@@ -462,6 +465,9 @@ export async function fetchRecentSales(
         item_id: string
         blizzard_id?: number
         item_name: string
+        buy_time_ts?: number
+        bought_at?: string
+        sell_time_ts?: number
         sold_at: string
         quantity: number
         buy_price_copper: number
@@ -487,6 +493,9 @@ export async function fetchRecentSales(
       itemId: s.item_id,
       blizzardId: s.blizzard_id,
       itemName: s.item_name,
+      buyTimeTs: s.buy_time_ts,
+      boughtAt: s.bought_at,
+      sellTimeTs: s.sell_time_ts,
       soldAt: s.sold_at,
       quantity: s.quantity,
       buyPriceCopper: s.buy_price_copper,
