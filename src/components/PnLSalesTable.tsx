@@ -163,7 +163,7 @@ export function PnLSalesTable() {
             No sales records found. Sync your <code>TradeSkillMaster.lua</code> to populate sales.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(251,191,36,0.25)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(251,191,36,0.25)', overflowY: 'visible' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
