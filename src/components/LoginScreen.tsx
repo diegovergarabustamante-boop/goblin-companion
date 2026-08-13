@@ -61,7 +61,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(11, 15, 25, 0.78)',
+            background: 'rgba(11, 15, 25, 0.38)',
             backdropFilter: 'blur(3px)',
             zIndex: 0
           }}
