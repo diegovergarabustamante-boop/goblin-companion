@@ -100,21 +100,20 @@ function enqueue(kind: SyncKind, filePath: string): void {
   const entry: QueuedSync = { kind, filePath, enqueuedAt: new Date().toISOString() }
   if (existing >= 0) state.queue[existing] = entry
   else state.queue.push(entry)
-  appendActivity('warn', `Sync ${kind} encolado`, `${state.queue.length} pendiente(s)`)
+  appendActivity('warn', `Sync ${kind} queued`, `${state.queue.length} pending`)
   emitStatus()
 }
 
 export async function flushSyncQueue(): Promise<void> {
   if (flushing || state.queue.length === 0) return
   flushing = true
-  appendActivity('info', `Reintentando cola (${state.queue.length})…`)
+  appendActivity('info', `Retrying queue (${state.queue.length})…`)
 
   while (state.queue.length > 0) {
     const next = state.queue.shift()
     if (!next) break
     const result = await syncFile(next.kind, next.filePath, 'manual')
     if (!result.ok && result.error !== 'cooldown') {
-      // syncFile ya re-encoló si Django sigue caído
       break
     }
   }
@@ -130,12 +129,12 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
   const remaining = cooldownMs() - (now - last)
 
   if (reason === 'auto' && remaining > 0) {
-    appendActivity('info', `Cooldown: omitiendo ${basenameSafe(filePath)}`, `${Math.ceil(remaining / 1000)}s restantes`)
+    appendActivity('info', `Cooldown: skipping ${basenameSafe(filePath)}`, `${Math.ceil(remaining / 1000)}s remaining`)
     return { ok: false, kind, filePath, error: 'cooldown' }
   }
 
   if (!settings.companionToken) {
-    const error = 'Falta Companion Token en Settings'
+    const error = 'Missing Companion Token in Settings'
     state.lastError = error
     state.djangoReachable = false
     appendActivity('error', error)
@@ -145,18 +144,17 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
 
   const validation = validateLuaFile(filePath)
   if (!validation.ok) {
-    appendActivity('warn', `Sync cancelado: ${basenameSafe(filePath)}`, validation.reason)
+    appendActivity('warn', `Sync cancelled: ${basenameSafe(filePath)}`, validation.reason)
     return { ok: false, kind, filePath, error: validation.reason }
   }
 
-  // Si ya sabemos que Django está caído, encolar sin intentar (salvo ping fresco en flush).
   if (state.djangoReachable === false && reason === 'auto') {
     enqueue(kind, filePath)
     return { ok: false, kind, filePath, error: 'django_down', queued: true }
   }
 
   state.syncing = true
-  state.syncStep = kind === 'inventory' ? 'Sincronizando inventario…' : 'Sincronizando accounting…'
+  state.syncStep = kind === 'inventory' ? 'Syncing inventory…' : 'Syncing accounting…'
   emitStatus()
   appendActivity('info', `Sync ${kind} (${reason})…`, basenameSafe(filePath))
 
@@ -167,11 +165,11 @@ export async function syncFile(kind: SyncKind, filePath: string, reason: 'auto' 
   state.syncStep = null
 
   if (!result.ok) {
-    state.lastError = result.error ?? 'sync falló'
+    state.lastError = result.error ?? 'sync failed'
     state.djangoReachable = false
-    appendActivity('error', `Sync ${kind} falló`, result.error)
+    appendActivity('error', `Sync ${kind} failed`, result.error)
     enqueue(kind, filePath)
-    notify('Sync falló', result.error ?? `No se pudo sincronizar ${kind}`, 'error')
+    notify('Sync failed', result.error ?? `Could not sync ${kind}`, 'error')
     emitStatus()
     return { ok: false, kind, filePath, error: result.error, queued: true }
   }

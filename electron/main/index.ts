@@ -142,7 +142,7 @@ async function runTsmWritePreview() {
 
 async function runTsmWriteConfirm(assignments: Parameters<typeof executeTsmWrite>[2]) {
   const filePath = resolveLuaPath('inventory')
-  if (!filePath) return { ok: false, error: 'SavedVariables no configurado' }
+  if (!filePath) return { ok: false, error: 'SavedVariables not configured' }
   try {
     createRotatingBackup(filePath)
   } catch (error) {
@@ -151,10 +151,10 @@ async function runTsmWriteConfirm(assignments: Parameters<typeof executeTsmWrite
   const result = await executeTsmWrite(getSettings(), filePath, assignments)
   if (result.ok) {
     appendActivity('success', 'Write TSM Groups OK', JSON.stringify(result.stats ?? {}))
-    notify('Write TSM OK', 'Grupos escritos en TradeSkillMaster.lua')
+    notify('TSM Write OK', 'Groups written to TradeSkillMaster.lua', 'write')
   } else {
-    appendActivity('error', 'Write TSM Groups falló', result.error)
-    notify('Write TSM falló', result.error ?? 'Error desconocido')
+    appendActivity('error', 'Write TSM Groups failed', result.error)
+    notify('TSM Write failed', result.error ?? 'Unknown error', 'error')
   }
   return result
 }

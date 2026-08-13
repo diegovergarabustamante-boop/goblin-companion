@@ -18,7 +18,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
   async function handleLogin(e?: React.FormEvent): Promise<void> {
     if (e) e.preventDefault()
     if (!username.trim() || !password.trim()) {
-      setError('Por favor ingresá tu usuario y contraseña de la web')
+      setError('Please enter your web username and password')
       return
     }
 
@@ -31,7 +31,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
         const updated = await window.goblin.getSettings()
         onLoginSuccess(updated)
       } else {
-        setError(result.error || 'Credenciales inválidas. Revisa usuario y contraseña.')
+        setError(result.error || 'Invalid credentials. Please check your username and password.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -75,13 +75,13 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
               Goblin Companion
             </h2>
             <p style={{ margin: '6px 0 0', color: '#94a3b8', fontSize: '0.86em' }}>
-              Iniciá sesión con tu cuenta registrada en la web <strong>Auction House Profit</strong>.
+              Sign in with your <strong>Auction House Profit</strong> account credentials.
             </p>
           </div>
 
           <form onSubmit={(e) => void handleLogin(e)} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>URL del Servidor Web</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Web Server URL</span>
               <input
                 type="text"
                 value={djangoUrl}
@@ -91,23 +91,23 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
             </label>
 
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Usuario Web</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Web Username</span>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Tu nombre de usuario"
+                placeholder="Your web username"
                 autoFocus
               />
             </label>
 
             <label className="field">
-              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Contraseña</span>
+              <span style={{ fontSize: '0.82em', color: '#cbd5e1', fontWeight: 600 }}>Password</span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Tu contraseña web"
+                placeholder="Your web password"
               />
             </label>
 
@@ -143,7 +143,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
                 marginTop: '4px'
               }}
             >
-              {busy ? '🔐 Verificando credenciales…' : '🔐 Iniciar Sesión'}
+              {busy ? '🔐 Verifying credentials…' : '🔐 Sign In'}
             </button>
           </form>
         </div>

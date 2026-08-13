@@ -3,7 +3,7 @@ import { useEffect, useState, type JSX } from 'react'
 import type { ActivityEvent, ActivityLevel } from '../../shared/settings'
 
 const FILTERS: Array<{ id: 'all' | ActivityLevel; label: string }> = [
-  { id: 'all', label: 'Todos' },
+  { id: 'all', label: 'All' },
   { id: 'success', label: 'OK' },
   { id: 'info', label: 'Info' },
   { id: 'warn', label: 'Warn' },
@@ -17,12 +17,12 @@ function ActivityLog(): JSX.Element {
   useEffect(() => {
     void window.goblin.getActivityLog().then(setEvents)
     return window.goblin.onActivity((event) => {
-      setEvents((current) => [event, ...current].slice(0, 200))
+      setEvents((current) => [event, ...current].slice(0, 300))
     })
   }, [])
 
   async function handleClear(): Promise<void> {
-    if (!window.confirm('¿Vaciar el activity log (memoria + archivo)?')) return
+    if (!window.confirm('Clear activity log (memory + disk file)?')) return
     await window.goblin.clearActivityLog()
     setEvents([])
   }
@@ -43,10 +43,10 @@ function ActivityLog(): JSX.Element {
           </button>
         ))}
         <button type="button" className="btn" onClick={() => void window.goblin.openActivityLogFolder()}>
-          Abrir carpeta
+          Open Folder
         </button>
         <button type="button" className="btn" onClick={() => void handleClear()} disabled={events.length === 0}>
-          Vaciar
+          Clear
         </button>
       </div>
 
@@ -55,8 +55,8 @@ function ActivityLog(): JSX.Element {
           <div className="empty-state">
             <p>
               {events.length === 0
-                ? 'Todavía no hay eventos. Activa auto-sync o dispara un sync manual.'
-                : 'Nada en este filtro.'}
+                ? 'No activity events recorded yet. Enable auto-sync or trigger a manual sync.'
+                : 'No events matching this filter.'}
             </p>
           </div>
         ) : (

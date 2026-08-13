@@ -27,12 +27,12 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
 
   async function forceSync(): Promise<void> {
     setBusy('sync')
-    setMessage('Sincronizando inventario + accounting…')
+    setMessage('Syncing inventory + accounting…')
     const invRes = await window.goblin.syncInventory()
     const accRes = await window.goblin.syncAccounting()
     setBusy(null)
     const ok = invRes.ok && accRes.ok
-    setMessage(ok ? '✓ Sincronización completada (inventario + accounting)' : `✗ ${invRes.error || accRes.error || 'Sincronización falló'}`)
+    setMessage(ok ? '✓ Sync completed (inventory + accounting)' : `✗ ${invRes.error || accRes.error || 'Sync failed'}`)
   }
 
   async function handlePreviewWrite(): Promise<void> {
@@ -48,7 +48,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
   async function handleConfirmWrite(): Promise<void> {
     if (!preview?.ok || !preview.assignments) return
     const confirmed = window.confirm(
-      '¿Escribir grupos TSM?\n\nWoW debe estar cerrado (o sin personaje logueado).\nSe creará un backup rotatorio automático antes de escribir.'
+      'Write TSM groups?\n\nWoW should be closed (or logged out of character).\nAn automatic rotating backup will be created before writing.'
     )
     if (!confirmed) return
 
@@ -60,18 +60,18 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
       const stats = result.stats ?? {}
       setMessage(`✓ Write OK — added=${stats.written ?? 0} updated=${stats.updated ?? 0} moved=${stats.moved ?? 0}`)
     } else {
-      setMessage(`✗ Write falló: ${result.error}`)
+      setMessage(`✗ Write failed: ${result.error}`)
     }
   }
 
   const djangoLabel =
-    status?.djangoReachable === null ? 'Sin verificar' : status?.djangoReachable ? 'OK' : 'No responde'
+    status?.djangoReachable === null ? 'Unverified' : status?.djangoReachable ? 'OK' : 'Not responding'
 
   return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Sub-tab Navigation Bar inside Dashboard */}
       <nav
-        aria-label="Dashboard Sub-Secciones"
+        aria-label="Dashboard Sub-Sections"
         style={{
           display: 'flex',
           gap: '8px',
@@ -94,7 +94,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             transition: 'all 0.2s ease'
           }}
         >
-          ⚙️ Estado & Controles
+          ⚙️ Status & Controls
         </button>
         <button
           type="button"
@@ -124,17 +124,17 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                 <input type="checkbox" checked={autoSyncEnabled} onChange={() => void toggleAutoSync()} />
                 <span className="switch__track" />
               </label>
-              <span className="dashboard-card__hint">{autoSyncEnabled ? 'Encendido' : 'Apagado'}</span>
+              <span className="dashboard-card__hint">{autoSyncEnabled ? 'On' : 'Off'}</span>
             </div>
 
             <div className="dashboard-card">
-              <span className="dashboard-card__label">Estado Django</span>
+              <span className="dashboard-card__label">Django Status</span>
               <span className="dashboard-card__value">{djangoLabel}</span>
-              <span className="dashboard-card__hint">{status?.syncing ? 'Sincronizando…' : ' '}</span>
+              <span className="dashboard-card__hint">{status?.syncing ? 'Syncing…' : ' '}</span>
             </div>
 
             <div className="dashboard-card">
-              <span className="dashboard-card__label">Inventario</span>
+              <span className="dashboard-card__label">Inventory</span>
               <span className="dashboard-card__value dashboard-card__value--sm">
                 {formatWhen(status?.lastInventorySyncAt)}
               </span>
@@ -148,9 +148,9 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             </div>
 
             <div className="dashboard-card">
-              <span className="dashboard-card__label">Cola</span>
+              <span className="dashboard-card__label">Queue</span>
               <span className="dashboard-card__value">{status?.queueLength ?? 0}</span>
-              <span className="dashboard-card__hint">pendientes</span>
+              <span className="dashboard-card__hint">pending</span>
             </div>
           </div>
 
@@ -188,7 +188,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                     : '✍️'}
                 </span>
                 <strong style={{ fontSize: '0.95em', color: '#f1f5f9' }}>
-                  Escritura TSM desde Web {status?.lastTsmWrite?.writeId ? `(#${status.lastTsmWrite.writeId})` : ''}
+                  Web TSM Write {status?.lastTsmWrite?.writeId ? `(#${status.lastTsmWrite.writeId})` : ''}
                 </strong>
                 {status?.lastTsmWrite?.at ? (
                   <span style={{ fontSize: '0.78em', color: '#94a3b8' }}>
@@ -199,20 +199,20 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
               <p style={{ margin: 0, fontSize: '0.85em', color: '#cbd5e1' }}>
                 {status?.lastTsmWrite
                   ? status.lastTsmWrite.detail
-                  : 'Sin órdenes de escritura recientes. Escribí grupos desde el Cart web o la sección manual inferior.'}
+                  : 'No recent write orders. Write groups from the web Cart or use manual preview below.'}
               </p>
             </div>
             {status?.lastTsmWrite?.status === 'processing' ? (
               <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(96, 165, 250, 0.2)', color: '#60a5fa' }}>
-                Ejecutando…
+                Executing…
               </span>
             ) : status?.lastTsmWrite?.status === 'done' ? (
               <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(74, 222, 128, 0.2)', color: '#4ade80' }}>
-                Completado
+                Completed
               </span>
             ) : status?.lastTsmWrite?.status === 'failed' ? (
               <span className="badge" style={{ fontSize: '0.78em', padding: '4px 8px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171' }}>
-                Falló
+                Failed
               </span>
             ) : null}
           </div>
@@ -224,7 +224,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
               disabled={Boolean(status?.syncing || busy !== null)}
               onClick={() => void forceSync()}
             >
-              {status?.syncing || busy === 'sync' ? '⏳ Sincronizando (inventario + accounting)…' : 'Forzar sincronización ahora'}
+              {status?.syncing || busy === 'sync' ? '⏳ Syncing (inventory + accounting)…' : 'Force sync now'}
             </button>
           </div>
 
@@ -241,8 +241,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           <section className="glass-panel">
             <h2>Write TSM Groups</h2>
             <p className="page__note">
-              Atajo single-group: usa el mapping guardado en el Cart + todos los items del carrito. Para multi-grupo,
-              escribí desde el Cart web (la companion creará automáticamente un backup pre-escritura).
+              Single-group shortcut: uses the saved Cart mapping + all items in cart. For multi-group, write from web Cart (the companion will automatically create a pre-write backup).
             </p>
             <div className="button-row">
               <button
@@ -251,7 +250,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                 disabled={busy !== null}
                 onClick={() => void handlePreviewWrite()}
               >
-                {busy === 'write' ? 'Preparando…' : 'Preview Write…'}
+                {busy === 'write' ? 'Preparing…' : 'Preview Write…'}
               </button>
               {preview?.ok ? (
                 <button
@@ -260,14 +259,14 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                   disabled={busy !== null}
                   onClick={() => void handleConfirmWrite()}
                 >
-                  Confirmar Write
+                  Confirm Write
                 </button>
               ) : null}
             </div>
             {preview?.ok ? (
               <div className="write-preview" style={{ marginTop: 12 }}>
                 <p className="page__note">
-                  {preview.itemCount ?? 0} items · {preview.preview?.length ?? 0} grupo(s) · afectados≈
+                  {preview.itemCount ?? 0} items · {preview.preview?.length ?? 0} group(s) · affected≈
                   {preview.totalItemsAffected ?? '—'}
                 </p>
                 <ul className="activity-list">
@@ -285,9 +284,8 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           </section>
 
           <p className="page__note">
-            Con auto-sync ON, al cerrar WoW (o guardar SavedVariables) la companion lee el `.lua`.
-            El carrito no se llena solo: en Decoder configurá chars/warbank/guilds y usá Apply, o
-            “Load from Companion” en Cart/Arbitrage.
+            With auto-sync ON, when WoW closes (or SavedVariables are written), the companion reads `.lua`.
+            The cart does not auto-fill: configure chars/warbank/guilds in Decoder and use Apply, or “Load from Companion” in Cart/Arbitrage.
           </p>
         </>
       ) : (
@@ -310,7 +308,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             Profit & Loss (P&L) Analytics
           </h2>
           <p style={{ maxWidth: '520px', margin: 0, color: '#94a3b8', fontSize: '0.92em', lineHeight: 1.6 }}>
-            El módulo de análisis financiero P&L calculará tus ganancias netas, margen de ventas, oro acumulado e historial contable extraído directamente desde TSM Accounting.
+            The P&L financial analysis module will calculate your net profits, sales margins, accumulated gold, and accounting history extracted directly from TSM Accounting.
           </p>
           <div
             style={{
@@ -325,7 +323,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
               textTransform: 'uppercase'
             }}
           >
-            ✦ Próximamente · Módulo en desarrollo ✦
+            ✦ Coming soon · Module under development ✦
           </div>
         </section>
       )}

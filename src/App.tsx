@@ -45,7 +45,7 @@ function App(): JSX.Element {
   if (!loaded || !settings) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#fbbf24', fontSize: '1em' }}>
-        🤖 Cargando Goblin Companion…
+        🤖 Loading Goblin Companion…
       </div>
     )
   }
@@ -66,7 +66,7 @@ function App(): JSX.Element {
   return (
     <div className="app-shell">
       <TitleBar status={status} />
-      <nav className="tab-bar" aria-label="Secciones">
+      <nav className="tab-bar" aria-label="Sections">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -87,7 +87,7 @@ function App(): JSX.Element {
       </main>
       <footer className="status-bar">
         <StatusDot status={status?.trayStatus ?? 'gray'} />
-        <span>{status?.autoSyncEnabled ? 'Auto-sync activo' : 'Auto-sync apagado'}</span>
+        <span>{status?.autoSyncEnabled ? 'Auto-sync active' : 'Auto-sync disabled'}</span>
         <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.78em' }}>
           👤 {settings.username}
         </span>

@@ -48,28 +48,28 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
     at: now,
     writeId: pending.writeId,
     status: 'processing',
-    detail: `Procesando ${pending.assignments.length} grupo(s)…`
+    detail: `Processing ${pending.assignments.length} group(s)…`
   })
 
-  appendActivity('info', `📥 Orden de escritura recibida (#${pending.writeId})`, `${pending.assignments.length} grupo(s) a escribir desde la web`)
+  appendActivity('info', `📥 Write order received (#${pending.writeId}) from web`, `${pending.assignments.length} group(s) to write`)
 
   try {
     const tsmPath = resolveTsmLuaPath(settings)
     if (!tsmPath) {
-      const errMsg = 'No se encontró TradeSkillMaster.lua. Configurá la ruta de SavedVariables en Settings.'
+      const errMsg = 'TradeSkillMaster.lua not found. Please set SavedVariables path in Settings.'
       await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
       updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
-      appendActivity('error', `❌ Write #${pending.writeId} fallido`, 'Carpeta SavedVariables no configurada')
-      notify('Goblin Companion', '❌ Write TSM fallido: configurá la ruta de SavedVariables en Settings.', 'error')
+      appendActivity('error', `❌ Write #${pending.writeId} failed`, 'SavedVariables folder not configured')
+      notify('Goblin Companion', '❌ TSM Write failed: Please set SavedVariables path in Settings.', 'error')
       return
     }
 
     if (!fs.existsSync(tsmPath)) {
-      const errMsg = `Archivo no encontrado: ${path.basename(tsmPath)}`
+      const errMsg = `File not found: ${path.basename(tsmPath)}`
       await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
       updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
-      appendActivity('error', `❌ Write #${pending.writeId} fallido`, errMsg)
-      notify('Goblin Companion', `❌ Write TSM fallido: ${errMsg}`, 'error')
+      appendActivity('error', `❌ Write #${pending.writeId} failed`, errMsg)
+      notify('Goblin Companion', `❌ TSM Write failed: ${errMsg}`, 'error')
       return
     }
 
@@ -79,7 +79,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
 
     if (result.ok) {
       const s = result.stats ?? {}
-      const detailStr = `Nuevos: ${s.written ?? 0} · Actualizados: ${s.updated ?? 0} · Movidos: ${s.moved ?? 0} · Limpiados: ${s.cleared ?? 0}`
+      const detailStr = `New: ${s.written ?? 0} · Updated: ${s.updated ?? 0} · Moved: ${s.moved ?? 0} · Cleared: ${s.cleared ?? 0}`
       updateLastTsmWrite({
         at: new Date().toISOString(),
         writeId: pending.writeId,
@@ -87,10 +87,10 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
         detail: detailStr,
         stats: s
       })
-      appendActivity('ok', `✅ Write TSM #${pending.writeId} finalizado con éxito`, detailStr)
-      notify('Goblin Companion', `✅ Grupos TSM actualizados (#${pending.writeId}): ${detailStr}`, 'write')
+      appendActivity('ok', `✅ TSM Write #${pending.writeId} completed successfully`, detailStr)
+      notify('Goblin Companion', `✅ TSM Groups updated (#${pending.writeId}): ${detailStr}`, 'write')
     } else {
-      const errMsg = result.error ?? 'Error desconocido'
+      const errMsg = result.error ?? 'Unknown error'
       updateLastTsmWrite({
         at: new Date().toISOString(),
         writeId: pending.writeId,
@@ -98,8 +98,8 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
         detail: errMsg,
         error: errMsg
       })
-      appendActivity('error', `❌ Write TSM #${pending.writeId} fallido`, errMsg)
-      notify('Goblin Companion', `❌ Write TSM fallido (#${pending.writeId}): ${errMsg}`, 'error')
+      appendActivity('error', `❌ TSM Write #${pending.writeId} failed`, errMsg)
+      notify('Goblin Companion', `❌ TSM Write failed (#${pending.writeId}): ${errMsg}`, 'error')
     }
   } finally {
     executing = false
@@ -111,26 +111,18 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Construye la ruta completa al TradeSkillMaster.lua desde la carpeta
- * SavedVariables configurada en Settings.
- *
- * wowSavedVariablesPath puede ser:
- *   - La carpeta: D:\WoW\_retail_\WTF\Account\78125981#3\SavedVariables
- *   - O ya el archivo completo: ...SavedVariables\TradeSkillMaster.lua
+ * Builds the full path to TradeSkillMaster.lua from the configured SavedVariables folder.
  */
 function resolveTsmLuaPath(settings: { wowSavedVariablesPath: string }): string | null {
   const raw = (settings.wowSavedVariablesPath ?? '').trim()
   if (!raw) return null
 
-  // Si ya termina en .lua, asumimos que es el archivo directo
   if (raw.toLowerCase().endsWith('.lua')) return raw
-
-  // Si es una carpeta, construimos la ruta
   return path.join(raw, 'TradeSkillMaster.lua')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SYNC GROUPS — sube los grupos TSM de este usuario a Django
+// SYNC GROUPS — upload user TSM groups to Django
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function uploadTsmGroupsToDjango(luaContent: string): Promise<void> {
@@ -143,7 +135,7 @@ export async function uploadTsmGroupsToDjango(luaContent: string): Promise<void>
 
     const result = await syncTsmGroups(settings, groups)
     if (result.ok) {
-      appendActivity('info', `📋 Grupos TSM sincronizados`, `${groups.length} grupos enviados a la web`)
+      appendActivity('info', `📋 TSM Groups synced`, `${groups.length} group(s) uploaded to web`)
     }
   } catch {
     // no-op, non-critical
@@ -151,7 +143,7 @@ export async function uploadTsmGroupsToDjango(luaContent: string): Promise<void>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LÓGICA INTERNA DE ESCRITURA (igual que Django pero en Node.js local)
+// LOCAL WRITE LOGIC
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface WriteResult {
@@ -163,19 +155,19 @@ interface WriteResult {
 
 async function executeTsmWrite(luaPath: string, pending: PendingWrite): Promise<WriteResult> {
   try {
-    // 1. Crear backup
+    // 1. Create backup
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const backupPath = luaPath + `.bak_${timestamp}`
     fs.copyFileSync(luaPath, backupPath)
-    appendActivity('info', '💾 Backup creado', path.basename(backupPath))
+    appendActivity('info', '💾 Backup created', path.basename(backupPath))
 
-    // 2. Leer el .lua
+    // 2. Read .lua
     const luaContent = fs.readFileSync(luaPath, 'utf-8')
 
-    // 3. Localizar la sección de items
+    // 3. Find items section
     const sectionMatch = luaContent.match(/\["p@Default@userData@items"\]\s*=\s*\{/)
     if (!sectionMatch || sectionMatch.index === undefined) {
-      return { ok: false, error: 'No se encontró la sección "p@Default@userData@items" en el archivo TSM.' }
+      return { ok: false, error: 'Could not find "p@Default@userData@items" section in TSM file.' }
     }
 
     const braceOpen = luaContent.indexOf('{', sectionMatch.index)
@@ -191,13 +183,13 @@ async function executeTsmWrite(luaPath: string, pending: PendingWrite): Promise<
 
     const sectionBody = luaContent.slice(braceOpen + 1, sectionEnd)
 
-    // 4. Parsear mappings existentes
+    // 4. Parse existing mappings
     const existing = new Map<string, string>()
     for (const m of sectionBody.matchAll(/\["(i:\d+)"\]\s*=\s*"([^"]+)"/g)) {
       existing.set(m[1], m[2])
     }
 
-    // 5. Aplicar assignments
+    // 5. Apply assignments
     const stats = { written: 0, updated: 0, cleared: 0, moved: 0 }
 
     for (const assignment of pending.assignments) {
@@ -206,8 +198,8 @@ async function executeTsmWrite(luaPath: string, pending: PendingWrite): Promise<
 
       appendActivity(
         'info',
-        `✍️ Asignando a grupo "${group}"`,
-        `${item_ids.length} ítem(s) · modo: ${clear_first ? 'limpiar grupo primero' : 'combinar con existentes'}`
+        `✍️ Assigning to group "${group}"`,
+        `${item_ids.length} item(s) · mode: ${clear_first ? 'clear group first' : 'merge with existing'}`
       )
 
       if (clear_first) {

@@ -37,10 +37,10 @@ export default function Backups(): JSX.Element {
     setBackupCount(clamped)
     try {
       await window.goblin.updateSettings({ backupCount: clamped })
-      setMessage(`✓ Límite de backups automáticos actualizado a ${clamped}`)
+      setMessage(`✓ Automatic backup limit updated to ${clamped}`)
       reloadAll()
     } catch (err) {
-      setMessage(`✗ Error al actualizar límite: ${err instanceof Error ? err.message : String(err)}`)
+      setMessage(`✗ Error updating limit: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -51,7 +51,7 @@ export default function Backups(): JSX.Element {
       const result = await window.goblin.createBackup('snapshot')
       if (result.ok) {
         const count = result.backups?.length || 0
-        setMessage(`✓ Snapshot creado: ${count} archivo(s) respaldado(s)`)
+        setMessage(`✓ Snapshot created: ${count} file(s) backed up`)
         reloadAll()
       } else {
         setMessage(`✗ Error: ${result.error}`)
@@ -64,8 +64,7 @@ export default function Backups(): JSX.Element {
   }
 
   const handleRestore = async (b: BackupInfoDto): Promise<void> => {
-    const title = b.kind === 'snapshot' ? 'snapshot' : 'backup'
-    const confirmMsg = `¿Restaurar solo el archivo "${b.fileName}"?\n\nDestino en WoW: ${b.targetFilename}\nFecha de creación: ${new Date(b.createdAt).toLocaleString()}\n\nSe creará un snapshot de seguridad antes de sobreescribir. WoW debe estar cerrado.`
+    const confirmMsg = `Restore only file "${b.fileName}"?\n\nWoW Target: ${b.targetFilename}\nCreated: ${new Date(b.createdAt).toLocaleString()}\n\nA safety snapshot will be created before overwriting. WoW should be closed.`
     if (!window.confirm(confirmMsg)) return
 
     setBusy(b.fileName)
@@ -73,10 +72,10 @@ export default function Backups(): JSX.Element {
     try {
       const result = await window.goblin.restoreBackup(b.fileName, b.kind)
       if (result.ok) {
-        setMessage(`✓ Restaurado "${b.fileName}" con éxito sobre ${result.restoredTo}`)
+        setMessage(`✓ Successfully restored "${b.fileName}" to ${result.restoredTo || b.targetFilename}`)
         reloadAll()
       } else {
-        setMessage(`✗ Error al restaurar: ${result.error}`)
+        setMessage(`✗ Error restoring: ${result.error}`)
       }
     } catch (err) {
       setMessage(`✗ Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -86,21 +85,21 @@ export default function Backups(): JSX.Element {
   }
 
   const handleDelete = async (b: BackupInfoDto): Promise<void> => {
-    const confirmMsg = `¿Eliminar de forma permanente el archivo de backup:\n"${b.fileName}"?\n\nFecha: ${new Date(b.createdAt).toLocaleString()}\n\nEsta acción NO se puede deshacer.`
+    const confirmMsg = `Permanently delete backup file:\n"${b.fileName}"?\n\nDate: ${new Date(b.createdAt).toLocaleString()}\n\nThis action CANNOT be undone.`
     if (!window.confirm(confirmMsg)) return
 
     setBusy(`del_${b.fileName}`)
     setMessage(null)
     try {
       if (typeof window.goblin.deleteBackup !== 'function') {
-        throw new Error('La función deleteBackup no está disponible. Reiniciá la app.')
+        throw new Error('deleteBackup function is not available. Please restart the app.')
       }
       const result = await window.goblin.deleteBackup(b.fileName, b.kind)
       if (result.ok) {
-        setMessage(`✓ Archivo eliminado: "${b.fileName}"`)
+        setMessage(`✓ File deleted: "${b.fileName}"`)
         reloadAll()
       } else {
-        setMessage(`✗ Error al eliminar: ${result.error}`)
+        setMessage(`✗ Error deleting: ${result.error}`)
       }
     } catch (err) {
       setMessage(`✗ Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -149,7 +148,7 @@ export default function Backups(): JSX.Element {
     if (sessions.length === 0) {
       return (
         <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '0.88em', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-          Sin {isWrite ? 'backups por escritura' : 'snapshots manuales'} registrados aún.
+          No {isWrite ? 'automatic write backups' : 'manual snapshots'} recorded yet.
         </div>
       )
     }
@@ -181,11 +180,11 @@ export default function Backups(): JSX.Element {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1em' }}>📅</span>
                 <span style={{ color: isWrite ? '#fbbf24' : '#c084fc', fontWeight: 700, fontSize: '0.92em' }}>
-                  Sesión de Backup #{sessions.length - index} — {new Date(session.createdAt).toLocaleString()}
+                  Backup Session #{sessions.length - index} — {new Date(session.createdAt).toLocaleString()}
                 </span>
               </div>
               <span style={{ fontSize: '0.78em', color: '#94a3b8', background: 'rgba(0,0,0,0.3)', padding: '2px 8px', borderRadius: '4px' }}>
-                {session.items.length} archivo(s) en esta sesión
+                {session.items.length} file(s) in this session
               </span>
             </div>
 
@@ -194,10 +193,10 @@ export default function Backups(): JSX.Element {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85em', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}>
-                    <th style={{ padding: '6px 8px' }}>Archivo en Backup</th>
-                    <th style={{ padding: '6px 8px' }}>Destino en WoW</th>
-                    <th style={{ padding: '6px 8px' }}>Tamaño</th>
-                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Acciones</th>
+                    <th style={{ padding: '6px 8px' }}>Backup File</th>
+                    <th style={{ padding: '6px 8px' }}>WoW Target</th>
+                    <th style={{ padding: '6px 8px' }}>Size</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -232,9 +231,9 @@ export default function Backups(): JSX.Element {
                               disabled={busy !== null}
                               onClick={() => void handleRestore(b)}
                               style={{ padding: '3px 10px', fontSize: '0.82em' }}
-                              title={`Restaurar solo ${b.targetFilename}`}
+                              title={`Restore only ${b.targetFilename}`}
                             >
-                              {busy === b.fileName ? '⏳ Restaurando…' : '🔄 Restaurar'}
+                              {busy === b.fileName ? '⏳ Restoring…' : '🔄 Restore'}
                             </button>
                             <button
                               type="button"
@@ -248,9 +247,9 @@ export default function Backups(): JSX.Element {
                                 color: '#f87171',
                                 border: '1px solid rgba(239,68,68,0.3)'
                               }}
-                              title={`Eliminar solo ${b.fileName}`}
+                              title={`Delete only ${b.fileName}`}
                             >
-                              {busy === `del_${b.fileName}` ? '⏳…' : '🗑️ Eliminar'}
+                              {busy === `del_${b.fileName}` ? '⏳…' : '🗑️ Delete'}
                             </button>
                           </div>
                         </td>
@@ -272,7 +271,7 @@ export default function Backups(): JSX.Element {
         <div>
           <h2 style={{ margin: 0, color: '#fbbf24', fontSize: '1.4em' }}>Backups & Snapshots Manager</h2>
           <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '0.88em' }}>
-            Gestioná y restaurá individualmente los archivos de <code>TradeSkillMaster.lua</code> y <code>TradeSkillMaster_AppHelper.lua</code>.
+            Manage and individually restore <code>TradeSkillMaster.lua</code> and <code>TradeSkillMaster_AppHelper.lua</code> files.
           </p>
         </div>
         <button
@@ -281,7 +280,7 @@ export default function Backups(): JSX.Element {
           onClick={() => void window.goblin.openBackupsFolder()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
         >
-          📂 Abrir carpeta de backups
+          📂 Open backups folder
         </button>
       </header>
 
@@ -306,10 +305,10 @@ export default function Backups(): JSX.Element {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#a78bfa', fontSize: '1.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📸 Snapshots Manuales
+              📸 Manual Snapshots
             </h3>
             <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
-              Puntos de restauración manuales. Guardan copia independiente de <code>TradeSkillMaster.lua</code> y <code>TradeSkillMaster_AppHelper.lua</code>.
+              Manual restore points. Save independent copies of <code>TradeSkillMaster.lua</code> and <code>TradeSkillMaster_AppHelper.lua</code>.
             </span>
           </div>
           <button
@@ -319,7 +318,7 @@ export default function Backups(): JSX.Element {
             onClick={() => void handleCreateSnapshot()}
             style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', color: '#fff' }}
           >
-            {busy === 'create' ? '⏳ Creando…' : '📸 Crear Snapshot Manual ahora'}
+            {busy === 'create' ? '⏳ Creating…' : '📸 Create Manual Snapshot now'}
           </button>
         </div>
 
@@ -331,14 +330,13 @@ export default function Backups(): JSX.Element {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🛡️ Backups por Escritura (Pre-Write)
+              🛡️ Pre-Write Backups
             </h3>
             <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
-              Archivos creados automáticamente antes de escribir o actualizar grupos TSM en WoW.
+              Files automatically created before writing or updating TSM groups in WoW.
             </span>
           </div>
 
-          {/* Configuración del límite de backups automáticos movido a Backups */}
           <div
             style={{
               display: 'inline-flex',
@@ -351,7 +349,7 @@ export default function Backups(): JSX.Element {
             }}
           >
             <span style={{ fontSize: '0.85em', color: '#fbbf24', fontWeight: 600 }}>
-              Límite a conservar (1–10):
+              Retention limit (1–10):
             </span>
             <input
               type="number"

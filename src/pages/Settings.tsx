@@ -40,7 +40,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
   async function handleLogin(): Promise<void> {
     if (!settings) return
     if (!loginUser.trim() || !loginPass.trim()) {
-      setLoginError('Por favor ingresá tu usuario y contraseña de la web')
+      setLoginError('Please enter your web username and password')
       return
     }
 
@@ -53,7 +53,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
         setLoginPass('')
         reloadSettings()
       } else {
-        setLoginError(result.error || 'Credenciales inválidas')
+        setLoginError(result.error || 'Invalid credentials')
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : String(err))
@@ -63,7 +63,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
   }
 
   async function handleLogout(): Promise<void> {
-    if (!window.confirm('¿Cerrar sesión en Goblin Companion?')) return
+    if (!window.confirm('Log out of Goblin Companion?')) return
     await window.goblin.logout()
     setLoginPass('')
     setLoginError(null)
@@ -95,7 +95,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
   if (!settings) {
     return (
       <div className="page">
-        <p>Cargando…</p>
+        <p>Loading…</p>
       </div>
     )
   }
@@ -106,7 +106,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
     <div className="page" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* SECCIÓN 1: LOGIN Y CONEXIÓN */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2>🔐 Conexión & Cuenta Web</h2>
+        <h2>🔐 Web Connection & Account</h2>
 
         {isLoggedIn ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -114,7 +114,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 padding: '12px 16px',
                 borderRadius: '8px',
                 background: 'rgba(34,197,94,0.12)',
@@ -123,10 +123,10 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             >
               <div>
                 <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  👤 Sesión Activa: {settings.username || 'Usuario Web'}
+                  👤 Active Session: {settings.username || 'Web User'}
                 </span>
                 <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
-                  Servidor: <code>{settings.djangoUrl}</code>
+                  Server: <code>{settings.djangoUrl}</code>
                 </span>
               </div>
               <button
@@ -135,12 +135,12 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 onClick={() => void handleLogout()}
                 style={{ padding: '6px 12px', fontSize: '0.82em', background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
               >
-                🚪 Cerrar Sesión
+                🚪 Log Out
               </button>
             </div>
 
             <label className="field">
-              <span>URL del Servidor Django</span>
+              <span>Django Server URL</span>
               <input
                 type="text"
                 value={settings.djangoUrl}
@@ -151,12 +151,12 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
             <div className="button-row">
               <button type="button" className="btn" onClick={() => void handleTestConnection()} disabled={testState === 'testing'}>
-                {testState === 'testing' ? 'Probando…' : 'Probar conexión'}
+                {testState === 'testing' ? 'Testing…' : 'Test connection'}
               </button>
               {testResult && (
                 <span className={testResult.ok ? 'test-result test-result--ok' : 'test-result test-result--error'}>
                   {testResult.ok
-                    ? `✓ Conectado${testResult.user ? ` como ${testResult.user}` : ''}`
+                    ? `✓ Connected${testResult.user ? ` as ${testResult.user}` : ''}`
                     : `✗ ${testResult.error}`}
                 </span>
               )}
@@ -166,11 +166,11 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
           /* FORMULARIO DE LOGIN SI NO HAY SESIÓN */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p className="page__note" style={{ margin: 0 }}>
-              Ingresá con las mismas credenciales de usuario con las que te registraste en la web <strong>Auction House Profit</strong>.
+              Sign in with the same account credentials you registered with on the <strong>Auction House Profit</strong> web app.
             </p>
 
             <label className="field">
-              <span>URL del Servidor Web</span>
+              <span>Web Server URL</span>
               <input
                 type="text"
                 value={settings.djangoUrl}
@@ -180,22 +180,22 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             </label>
 
             <label className="field">
-              <span>Usuario Web</span>
+              <span>Web Username</span>
               <input
                 type="text"
                 value={loginUser}
                 onChange={(e) => setLoginUser(e.target.value)}
-                placeholder="Tu nombre de usuario"
+                placeholder="Your web username"
               />
             </label>
 
             <label className="field">
-              <span>Contraseña</span>
+              <span>Password</span>
               <input
                 type="password"
                 value={loginPass}
                 onChange={(e) => setLoginPass(e.target.value)}
-                placeholder="Tu contraseña web"
+                placeholder="Your web password"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void handleLogin()
                 }}
@@ -215,7 +215,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               onClick={() => void handleLogin()}
               style={{ marginTop: '6px' }}
             >
-              {loginBusy ? '🔐 Autenticando…' : '🔐 Iniciar Sesión'}
+              {loginBusy ? '🔐 Authenticating…' : '🔐 Sign In'}
             </button>
           </div>
         )}
@@ -225,12 +225,12 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
       <section className="glass-panel">
         <h2>WoW SavedVariables</h2>
         <label className="field">
-          <span>Carpeta SavedVariables (no el archivo .lua)</span>
+          <span>SavedVariables Folder (not the .lua file)</span>
           <input
             type="text"
             value={settings.wowSavedVariablesPath}
             onChange={(event) => patch({ wowSavedVariablesPath: event.target.value })}
-            placeholder="…/SavedVariables  (carpeta, no el .lua)"
+            placeholder="…/SavedVariables (folder, not the .lua file)"
           />
         </label>
         <label className="checkbox-field">
@@ -239,13 +239,13 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             checked={settings.autoSyncEnabled}
             onChange={(event) => patch({ autoSyncEnabled: event.target.checked })}
           />
-          <span>Auto-sync al detectar cambios en .lua</span>
+          <span>Auto-sync when .lua changes are detected</span>
         </label>
       </section>
 
       {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <h2>🔔 Notificaciones, Logs y Sistema</h2>
+        <h2>🔔 Notifications, Logs & System</h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <label className="checkbox-field">
@@ -254,7 +254,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               checked={settings.notificationsEnabled}
               onChange={(event) => patch({ notificationsEnabled: event.target.checked })}
             />
-            <span style={{ fontWeight: 700 }}>Activar notificaciones nativas de Windows</span>
+            <span style={{ fontWeight: 700 }}>Enable native Windows desktop notifications</span>
           </label>
 
           {/* Sub-toggles granulares */}
@@ -276,7 +276,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnSync: e.target.checked })}
               />
-              <span>🔄 Sincronizaciones de inventario y accounting</span>
+              <span>🔄 Inventory and accounting syncs</span>
             </label>
 
             <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
@@ -286,7 +286,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnWrite: e.target.checked })}
               />
-              <span>✍️ Escrituras TSM recibidas desde la web</span>
+              <span>✍️ TSM write orders received from web</span>
             </label>
 
             <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
@@ -296,7 +296,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 disabled={!settings.notificationsEnabled}
                 onChange={(e) => patch({ notifyOnError: e.target.checked })}
               />
-              <span>⚠️ Alertas de errores y fallas</span>
+              <span>⚠️ Error alerts and failures</span>
             </label>
           </div>
         </div>
@@ -305,10 +305,10 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
         <div>
           <span style={{ fontSize: '0.88em', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
-            📜 Retención de Activity Log
+            📜 Activity Log Retention
           </span>
           <p style={{ margin: 0, fontSize: '0.82em', color: '#94a3b8' }}>
-            El sistema conserva un <strong>máximo de 300 eventos</strong> en memoria y en disco. A medida que ingresan nuevos registros, los más antiguos se van descartando automáticamente.
+            The system preserves a <strong>maximum of 300 events</strong> in memory and on disk. As new records arrive, older entries are automatically discarded.
           </p>
         </div>
 
@@ -320,12 +320,12 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             checked={settings.startWithWindows}
             onChange={(event) => patch({ startWithWindows: event.target.checked })}
           />
-          <span>Iniciar con Windows (minimizado al tray)</span>
+          <span>Start with Windows (minimized to tray)</span>
         </label>
       </section>
 
       <button type="button" className="btn btn--primary" onClick={() => void handleSave()}>
-        {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' ? 'Guardado ✓' : 'Guardar cambios'}
+        {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved ✓' : 'Save changes'}
       </button>
     </div>
   )

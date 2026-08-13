@@ -16,7 +16,7 @@ let running = false
  */
 export function startConnectionMonitor(intervalMs = DEFAULT_INTERVAL_MS): void {
   stopConnectionMonitor()
-  appendActivity('info', 'Connection monitor activo', `cada ${Math.round(intervalMs / 1000)}s`)
+  appendActivity('info', 'Connection monitor active', `every ${Math.round(intervalMs / 1000)}s`)
 
   const tick = async (): Promise<void> => {
     if (running) return
