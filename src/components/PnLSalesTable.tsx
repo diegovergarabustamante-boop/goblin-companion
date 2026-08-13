@@ -88,6 +88,12 @@ export function PnLSalesTable() {
 
   // Load Wowhead tooltips script
   useEffect(() => {
+    ;(window as unknown as { whTooltips?: Record<string, boolean> }).whTooltips = {
+      colorLinks: true,
+      iconizeLinks: true,
+      renameLinks: false
+    }
+
     if (!document.getElementById('wowhead-script')) {
       const script = document.createElement('script')
       script.id = 'wowhead-script'
@@ -399,14 +405,23 @@ export function PnLSalesTable() {
                                 data-wowhead={`item=${bId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{
-                                  color: '#f1f5f9',
-                                  textDecoration: 'none',
-                                  fontWeight: 600,
-                                  transition: 'color 0.15s ease'
+                                className="q"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  const targetUrl = `https://www.wowhead.com/item=${bId}`
+                                  if (window.goblin?.openExternal) {
+                                    void window.goblin.openExternal(targetUrl)
+                                  } else {
+                                    window.open(targetUrl, '_blank')
+                                  }
                                 }}
-                                onMouseOver={(e) => (e.currentTarget.style.color = '#fbbf24')}
-                                onMouseOut={(e) => (e.currentTarget.style.color = '#f1f5f9')}
+                                style={{
+                                  fontWeight: 600,
+                                  textDecoration: 'none',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
                               >
                                 {sale.itemName}
                               </a>
