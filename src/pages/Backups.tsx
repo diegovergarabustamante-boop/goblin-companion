@@ -192,7 +192,7 @@ export default function Backups(): JSX.Element {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <img src="/images/goblin_assets/info.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                <img src="./images/goblin_assets/info.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
                 <span style={{ color: isWrite ? '#fbbf24' : '#c084fc', fontWeight: 700, fontSize: '0.92em', fontFamily: 'var(--font-header)' }}>
                   Backup Session #{sessions.length - index} — {new Date(session.createdAt).toLocaleString()}
                 </span>
@@ -247,7 +247,7 @@ export default function Backups(): JSX.Element {
                               style={{ padding: '4px 10px', fontSize: '0.82em' }}
                               title={`Restore only ${b.targetFilename}`}
                             >
-                              <img src="/images/goblin_assets/anchor_key.png" alt="" style={{ width: 14, height: 14 }} />
+                              <img src="./images/goblin_assets/anchor_key.png" alt="" style={{ width: 14, height: 14 }} />
                               <span>{busy === b.fileName ? 'Restoring…' : 'Restore'}</span>
                             </button>
                             <button
@@ -258,7 +258,7 @@ export default function Backups(): JSX.Element {
                               style={{ padding: '4px 10px', fontSize: '0.82em' }}
                               title={`Delete only ${b.fileName}`}
                             >
-                              <img src="/images/goblin_assets/clear.png" alt="" style={{ width: 14, height: 14 }} />
+                              <img src="./images/goblin_assets/clear.png" alt="" style={{ width: 14, height: 14 }} />
                               <span>{busy === `del_${b.fileName}` ? '…' : 'Delete'}</span>
                             </button>
                           </div>
@@ -280,7 +280,7 @@ export default function Backups(): JSX.Element {
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ margin: 0, color: '#fbbf24', fontSize: '1.4em', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/images/goblin_assets/save.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            <img src="./images/goblin_assets/save.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
             <span>Backups & Snapshots Manager</span>
           </h2>
           <p className="page__note" style={{ marginTop: '4px' }}>
@@ -292,7 +292,7 @@ export default function Backups(): JSX.Element {
           className="btn"
           onClick={() => void window.goblin.openBackupsFolder()}
         >
-          <img src="/images/goblin_assets/bag.png" alt="" style={{ width: 18, height: 18 }} />
+          <img src="./images/goblin_assets/bag.png" alt="" style={{ width: 18, height: 18 }} />
           <span>Open Backups Folder</span>
         </button>
       </header>
@@ -300,7 +300,7 @@ export default function Backups(): JSX.Element {
       {message ? (
         <div className={`activity-item ${messageType === 'success' ? 'activity-item--success' : 'activity-item--error'}`}>
           <img
-            src={messageType === 'success' ? '/images/goblin_assets/success.png' : '/images/goblin_assets/failure.png'}
+            src={messageType === 'success' ? './images/goblin_assets/success.png' : './images/goblin_assets/failure.png'}
             alt=""
             className="activity-item__icon"
           />
@@ -313,7 +313,7 @@ export default function Backups(): JSX.Element {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#c084fc', fontSize: '1.1em', fontFamily: 'var(--font-header)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <img src="/images/goblin_assets/save.png" alt="" style={{ width: 20, height: 20 }} />
+              <img src="./images/goblin_assets/save.png" alt="" style={{ width: 20, height: 20 }} />
               <span>Manual Snapshots</span>
             </h3>
             <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
@@ -326,7 +326,7 @@ export default function Backups(): JSX.Element {
             disabled={busy === 'create'}
             onClick={() => void handleCreateSnapshot()}
           >
-            <img src="/images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
+            <img src="./images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
             <span>{busy === 'create' ? 'Creating…' : 'Create Manual Snapshot'}</span>
           </button>
         </div>
@@ -339,7 +339,7 @@ export default function Backups(): JSX.Element {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
           <div>
             <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1.1em', fontFamily: 'var(--font-header)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <img src="/images/goblin_assets/warning.png" alt="" style={{ width: 20, height: 20 }} />
+              <img src="./images/goblin_assets/warning.png" alt="" style={{ width: 20, height: 20 }} />
               <span>Pre-Write Backups</span>
             </h3>
             <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>

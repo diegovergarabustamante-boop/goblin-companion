@@ -51,7 +51,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px',
-          background: 'var(--color-bg) url("/images/bg/trade_princes_vault.png") no-repeat center center fixed',
+          background: 'var(--color-bg) url("./images/bg/trade_princes_vault.png") no-repeat center center fixed',
           backgroundSize: 'cover',
           position: 'relative'
         }}
@@ -75,7 +75,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
         >
           <div style={{ textAlign: 'center' }}>
             <img
-              src="/images/goblin_assets/coin_badge_1.png"
+              src="./images/goblin_assets/coin_badge_1.png"
               alt="Goblin"
               style={{
                 width: 64,
@@ -140,7 +140,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
                   gap: '8px'
                 }}
               >
-                <img src="/images/goblin_assets/failure.png" alt="" style={{ width: 16, height: 16 }} />
+                <img src="./images/goblin_assets/failure.png" alt="" style={{ width: 16, height: 16 }} />
                 <span>{error}</span>
               </div>
             ) : null}
@@ -156,7 +156,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
                 marginTop: '4px'
               }}
             >
-              <img src="/images/goblin_assets/login.png" alt="" style={{ width: 18, height: 18 }} />
+              <img src="./images/goblin_assets/login.png" alt="" style={{ width: 18, height: 18 }} />
               <span>{busy ? 'Verifying credentials…' : 'Sign In'}</span>
             </button>
           </form>

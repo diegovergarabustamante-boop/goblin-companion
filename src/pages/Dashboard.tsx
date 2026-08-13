@@ -78,7 +78,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             color: subTab === 'overview' ? '#fbbf24' : '#94a3b8'
           }}
         >
-          <img src="/images/goblin_assets/wrench.png" alt="" />
+          <img src="./images/goblin_assets/wrench.png" alt="" />
           <span>Status & Controls</span>
         </button>
         <button
@@ -91,7 +91,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
             color: subTab === 'pnl' ? '#c084fc' : '#94a3b8'
           }}
         >
-          <img src="/images/goblin_assets/coin_badge_1.png" alt="" />
+          <img src="./images/goblin_assets/coin_badge_1.png" alt="" />
           <span>P&L Analytics</span>
         </button>
       </nav>
@@ -123,7 +123,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
               disabled={Boolean(status?.syncing || busy !== null)}
               onClick={() => void forceSync()}
             >
-              <img src="/images/goblin_assets/search.png" alt="" />
+              <img src="./images/goblin_assets/search.png" alt="" />
               <span>{status?.syncing || busy === 'sync' ? 'Syncing (inventory + accounting)…' : 'Force sync now'}</span>
             </button>
           </div>
@@ -131,7 +131,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           {message ? (
             <div className={`activity-item ${messageType === 'success' ? 'activity-item--success' : messageType === 'error' ? 'activity-item--error' : 'activity-item--info'}`}>
               <img
-                src={messageType === 'success' ? '/images/goblin_assets/success.png' : messageType === 'error' ? '/images/goblin_assets/failure.png' : '/images/goblin_assets/info.png'}
+                src={messageType === 'success' ? './images/goblin_assets/success.png' : messageType === 'error' ? './images/goblin_assets/failure.png' : './images/goblin_assets/info.png'}
                 alt=""
                 className="activity-item__icon"
               />
@@ -142,8 +142,8 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
           {/* SECCIÓN ESCRITURA DE GRUPOS TSM */}
           <section className="glass-panel">
             <h2>
-              <img src="/images/goblin_assets/cart.png" alt="" />
-              <span>TSM Group Writing & Web Cart</span>
+              <img src="./images/goblin_assets/cart.png" alt="" />
+              <span>TSM GROUP WRITING & WEB CART</span>
             </h2>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -157,7 +157,7 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                   className="btn btn--primary"
                   onClick={() => void openWebCart()}
                 >
-                  <img src="/images/goblin_assets/cart.png" alt="" />
+                  <img src="./images/goblin_assets/cart.png" alt="" />
                   <span>Open Web Cart in Browser</span>
                 </button>
               </div>

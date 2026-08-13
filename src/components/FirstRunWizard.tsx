@@ -66,19 +66,19 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         <h2 id="wizard-title">
           {step === 0 && (
             <>
-              <img src="/images/goblin_assets/database.png" alt="" style={{ width: 22, height: 22 }} />
+              <img src="./images/goblin_assets/database.png" alt="" style={{ width: 22, height: 22 }} />
               <span>Sign In to Web Account</span>
             </>
           )}
           {step === 1 && (
             <>
-              <img src="/images/goblin_assets/TSM.png" alt="" style={{ width: 22, height: 22 }} />
+              <img src="./images/goblin_assets/TSM.png" alt="" style={{ width: 22, height: 22 }} />
               <span>WoW SavedVariables Folder</span>
             </>
           )}
           {step === 2 && (
             <>
-              <img src="/images/goblin_assets/icon_config.png" alt="" style={{ width: 22, height: 22 }} />
+              <img src="./images/goblin_assets/icon_config.png" alt="" style={{ width: 22, height: 22 }} />
               <span>Preferences</span>
             </>
           )}
@@ -122,21 +122,21 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
 
             {loginError ? (
               <div style={{ color: '#f87171', fontSize: '0.85em', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <img src="/images/goblin_assets/failure.png" alt="" style={{ width: 14, height: 14 }} />
+                <img src="./images/goblin_assets/failure.png" alt="" style={{ width: 14, height: 14 }} />
                 <span>{loginError}</span>
               </div>
             ) : null}
 
             {draft.companionToken ? (
               <div style={{ color: '#4ade80', fontSize: '0.85em', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <img src="/images/goblin_assets/success.png" alt="" style={{ width: 14, height: 14 }} />
+                <img src="./images/goblin_assets/success.png" alt="" style={{ width: 14, height: 14 }} />
                 <span>Connected as {draft.username || 'Web User'}</span>
               </div>
             ) : null}
 
             <div className="button-row" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn--primary" disabled={testing} onClick={() => void handleLogin()}>
-                <img src="/images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
+                <img src="./images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
                 <span>{testing ? 'Verifying…' : 'Sign In'}</span>
               </button>
             </div>
@@ -200,7 +200,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
             </button>
           ) : (
             <button type="button" className="btn btn--primary" disabled={saving} onClick={() => void finish()}>
-              <img src="/images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
+              <img src="./images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
               <span>{saving ? 'Saving…' : 'Get Started'}</span>
             </button>
           )}

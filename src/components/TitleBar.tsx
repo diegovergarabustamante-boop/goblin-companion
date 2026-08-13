@@ -12,7 +12,7 @@ function TitleBar({ status }: TitleBarProps): JSX.Element {
     <div className="title-bar">
       <div className="title-bar__drag-region">
         <img
-          src="/images/goblin_assets/coin_badge_1.png"
+          src="./images/goblin_assets/coin_badge_1.png"
           alt="Goblin Companion"
           className="title-bar__brand-icon"
         />

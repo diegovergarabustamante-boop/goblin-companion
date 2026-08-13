@@ -90,7 +90,7 @@ function WowItemLinkCell({
         if (active && res) {
           const itemMeta: ItemMeta = {
             quality: typeof res.quality === 'number' ? res.quality : 2,
-            iconUrl: res.iconUrl || '/images/goblin_assets/icon_inventory.png',
+            iconUrl: res.iconUrl || './images/goblin_assets/icon_inventory.png',
             name: res.name || ''
           }
           itemMetaCache[blizzardId] = itemMeta
@@ -111,7 +111,7 @@ function WowItemLinkCell({
   }, [blizzardId])
 
   const qualityColor = meta ? (WOW_QUALITY_COLORS[meta.quality] || '#1eff00') : '#1eff00'
-  const iconUrl = meta?.iconUrl || '/images/goblin_assets/icon_inventory.png'
+  const iconUrl = meta?.iconUrl || './images/goblin_assets/icon_inventory.png'
   const wowUrl = blizzardId ? `https://www.wowhead.com/item=${blizzardId}` : null
 
   const isGenericName = /^Item\s+\d+$/i.test(itemName) || /^i:\d+/i.test(itemName) || itemName === String(blizzardId)
@@ -247,28 +247,28 @@ export function PnLSalesTable() {
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,78,59,0.2))', border: '1px solid rgba(16,185,129,0.3)' }}>
-          <img src="/images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <div>
             <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Revenue</div>
             <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalRev} /></div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(120,53,15,0.2))', border: '1px solid rgba(245,158,11,0.3)' }}>
-          <img src="/images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <div>
             <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Cost</div>
             <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalCost} /></div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: totalProfit >= 0 ? 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(4,120,87,0.25))' : 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))', border: totalProfit >= 0 ? '1.5px solid rgba(52,211,153,0.4)' : '1.5px solid rgba(248,113,113,0.4)' }}>
-          <img src={totalProfit >= 0 ? '/images/goblin_assets/success.png' : '/images/goblin_assets/clear.png'} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={totalProfit >= 0 ? './images/goblin_assets/success.png' : './images/goblin_assets/clear.png'} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
           <div>
             <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Net Profit / Loss</div>
             <div style={{ fontSize: '1.05em', marginTop: 2, color: totalProfit >= 0 ? '#4ade80' : '#f87171' }}><CoinBadge copper={totalProfit} /></div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(168,85,247,0.12),rgba(88,28,135,0.2))', border: '1px solid rgba(168,85,247,0.3)' }}>
-          <img src="/images/goblin_assets/icon_inventory.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <img src="./images/goblin_assets/icon_inventory.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <div>
             <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Sales Records</div>
             <div style={{ fontSize: '1.2em', fontWeight: 700, color: '#c084fc', marginTop: 2 }}>{sales.length} items</div>
@@ -285,7 +285,7 @@ export function PnLSalesTable() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>Showing {filteredSales.length} of {sales.length} recent sales</span>
             <button type="button" className="btn btn--secondary" onClick={() => void loadSales()} disabled={loading} style={{ padding: '8px 14px', fontSize: '0.85em' }}>
-              <img src="/images/goblin_assets/sync.png" alt="" style={{ width: 16, height: 16, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+              <img src="./images/goblin_assets/sync.png" alt="" style={{ width: 16, height: 16, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
               <span>Refresh</span>
             </button>
           </div>

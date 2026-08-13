@@ -13,14 +13,14 @@ const FILTERS: Array<{ id: 'all' | ActivityLevel; label: string }> = [
 function getIconForLevel(level: ActivityLevel): string {
   switch (level) {
     case 'success':
-      return '/images/goblin_assets/success.png'
+      return './images/goblin_assets/success.png'
     case 'warn':
-      return '/images/goblin_assets/warning.png'
+      return './images/goblin_assets/warning.png'
     case 'error':
-      return '/images/goblin_assets/failure.png'
+      return './images/goblin_assets/failure.png'
     case 'info':
     default:
-      return '/images/goblin_assets/info.png'
+      return './images/goblin_assets/info.png'
   }
 }
 
@@ -62,7 +62,7 @@ function ActivityLog(): JSX.Element {
           onClick={() => void window.goblin.openActivityLogFolder()}
           style={{ marginLeft: 'auto' }}
         >
-          <img src="/images/goblin_assets/bag.png" alt="" style={{ width: 16, height: 16 }} />
+          <img src="./images/goblin_assets/bag.png" alt="" style={{ width: 16, height: 16 }} />
           <span>Open Folder</span>
         </button>
         <button
@@ -71,14 +71,14 @@ function ActivityLog(): JSX.Element {
           onClick={() => void handleClear()}
           disabled={events.length === 0}
         >
-          <img src="/images/goblin_assets/clear.png" alt="" style={{ width: 16, height: 16 }} />
+          <img src="./images/goblin_assets/clear.png" alt="" style={{ width: 16, height: 16 }} />
           <span>Clear</span>
         </button>
       </div>
 
       <div className="glass-panel activity-log">
         <h2 style={{ marginBottom: 14 }}>
-          <img src="/images/goblin_assets/icon_items.png" alt="" />
+          <img src="./images/goblin_assets/icon_items.png" alt="" />
           <span>Live Activity Events</span>
         </h2>
         {visible.length === 0 ? (

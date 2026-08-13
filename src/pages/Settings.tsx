@@ -107,7 +107,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
       {/* SECCIÓN 1: LOGIN Y CONEXIÓN */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <h2>
-          <img src="/images/goblin_assets/database.png" alt="" />
+          <img src="./images/goblin_assets/database.png" alt="" />
           <span>Web Connection & Account</span>
         </h2>
 
@@ -126,7 +126,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             >
               <div>
                 <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <img src="/images/goblin_assets/user.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                  <img src="./images/goblin_assets/user.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
                   <span>Active Session: {settings.username || 'Web User'}</span>
                 </span>
                 <span style={{ color: '#94a3b8', fontSize: '0.82em', display: 'block', marginTop: '2px' }}>
@@ -139,7 +139,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
                 onClick={() => void handleLogout()}
                 style={{ padding: '6px 14px', fontSize: '0.82em' }}
               >
-                <img src="/images/goblin_assets/logout.png" alt="" style={{ width: 14, height: 14 }} />
+                <img src="./images/goblin_assets/logout.png" alt="" style={{ width: 14, height: 14 }} />
                 <span>Log Out</span>
               </button>
             </div>
@@ -156,7 +156,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
 
             <div className="button-row">
               <button type="button" className="btn" onClick={() => void handleTestConnection()} disabled={testState === 'testing'}>
-                <img src="/images/goblin_assets/search.png" alt="" style={{ width: 16, height: 16 }} />
+                <img src="./images/goblin_assets/search.png" alt="" style={{ width: 16, height: 16 }} />
                 <span>{testState === 'testing' ? 'Testing…' : 'Test Connection'}</span>
               </button>
               {testResult && (
@@ -221,7 +221,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
               onClick={() => void handleLogin()}
               style={{ marginTop: '6px' }}
             >
-              <img src="/images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
+              <img src="./images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
               <span>{loginBusy ? 'Authenticating…' : 'Sign In'}</span>
             </button>
           </div>
@@ -231,7 +231,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
       {/* SECCIÓN 2: WOW SAVEDVARIABLES */}
       <section className="glass-panel">
         <h2>
-          <img src="/images/goblin_assets/TSM.png" alt="" />
+          <img src="./images/goblin_assets/TSM.png" alt="" />
           <span>WoW SavedVariables</span>
         </h2>
         <label className="field">
@@ -266,7 +266,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
       {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <h2>
-          <img src="/images/goblin_assets/info.png" alt="" />
+          <img src="./images/goblin_assets/info.png" alt="" />
           <span>Notifications, Logs & System</span>
         </h2>
 
@@ -348,7 +348,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
       </section>
 
       <button type="button" className="btn btn--primary" onClick={() => void handleSave()} style={{ padding: '12px 24px', fontSize: '0.95em' }}>
-        <img src="/images/goblin_assets/save.png" alt="" style={{ width: 18, height: 18 }} />
+        <img src="./images/goblin_assets/save.png" alt="" style={{ width: 18, height: 18 }} />
         <span>{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save Changes'}</span>
       </button>
     </div>
