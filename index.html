@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+      content="default-src 'self'; script-src 'self' https://wow.zamimg.com; connect-src 'self' https://*.wowhead.com https://*.zamimg.com; img-src 'self' data: https://*.zamimg.com; style-src 'self' 'unsafe-inline'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Goblin Companion</title>
+    <!-- Wowhead Tooltips -->
+    <script>window.whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: true };</script>
+    <script src="https://wow.zamimg.com/js/tooltips.js"></script>
   </head>
   <body>
     <div id="root"></div>
