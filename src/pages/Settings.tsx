@@ -243,14 +243,24 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
             placeholder="…/SavedVariables (folder, not the .lua file)"
           />
         </label>
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={settings.autoSyncEnabled}
-            onChange={(event) => patch({ autoSyncEnabled: event.target.checked })}
-          />
-          <span style={{ color: '#f3f4f6' }}>Auto-sync when .lua changes are detected</span>
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(12, 8, 3, 0.6)', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.2)', marginTop: '8px' }}>
+          <div>
+            <span style={{ color: '#f3f4f6', fontWeight: 700, fontSize: '0.92em', display: 'block', fontFamily: 'var(--font-header)' }}>
+              Automatic SavedVariables Sync
+            </span>
+            <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
+              Automatically parse and sync .lua changes when WoW saves or exits
+            </span>
+          </div>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={settings.autoSyncEnabled}
+              onChange={(event) => patch({ autoSyncEnabled: event.target.checked })}
+            />
+            <span className="switch__track" />
+          </label>
+        </div>
       </section>
 
       {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
