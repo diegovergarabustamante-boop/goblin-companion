@@ -6,6 +6,7 @@ directories:
   buildResources: build
 files:
   - out/**/*
+  - build/**/*
   - package.json
 asar: true
 win:
@@ -13,7 +14,7 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: build/icon.png
+  icon: build/icon.ico
   artifactName: GoblinCompanion-Setup-${version}.${ext}
 nsis:
   oneClick: false
@@ -24,5 +25,8 @@ nsis:
   shortcutName: Goblin Companion
   uninstallDisplayName: Goblin Companion
   deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
 portable:
   artifactName: GoblinCompanion-Portable-${version}.${ext}
