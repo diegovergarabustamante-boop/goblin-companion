@@ -1,68 +1,107 @@
-# Goblin Companion
+# 🪙 Goblin Companion
 
-Companion de escritorio (Electron + React) para [Auction-house-Profit](../Auction-house-Profit). Vigila los `SavedVariables` de World of Warcraft y sincroniza automáticamente con el backend Django, para que la web ya tenga los datos frescos sin tener que cargar archivos a mano.
+[![License: UNLICENSED](https://img.shields.io/badge/License-UNLICENSED-amber.svg)](https://github.com/diegovergarabustamante-boop/goblin-companion)
+[![Electron](https://img.shields.io/badge/Electron-43.4-4785D4.svg?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-Plan técnico completo: [`docs/plan.md`](./docs/plan.md).
+**Goblin Companion** is an automated, lightweight desktop assistant built with **Electron, React, and TypeScript** for [Auction-house-Profit](https://github.com/diegovergarabustamante-boop/Auction-house-Profit). 
 
-## Estado actual (Etapa 8 — installer)
+It continuously monitors World of Warcraft `SavedVariables` files (`TradeSkillMaster.lua` & `TradeSkillMaster_AppHelper.lua`) and seamlessly synchronizes inventory, purchases, sales, and auction stats directly with the web application in real time—eliminating all manual file uploads.
 
-MVP completo: Stages 0–8.
+---
 
-Lo que ya funciona:
+## 🌟 Key Features & Capabilities
 
-- Ventana frameless 960×640 con el mismo design system (colores, tipografías, glass) que la web.
-- Tray permanente con ícono de estado (verde/amarillo/gris/rojo) generado en runtime.
-- Cerrar la ventana `[×]` minimiza a la bandeja en vez de cerrar la app.
-- 4 tabs: Dashboard, Activity Log, Controls, Settings (+ tab "P&L — Coming soon" deshabilitado).
-- Settings persistente vía `electron-store` (Django URL, token, carpeta de WoW, nº de backups).
-- **Auth companion contra Django** (Etapa 2).
-- **Watcher + sync a DB** (Etapa 3): inventario + accounting desde `TradeSkillMaster.lua` (mismo archivo que usa TSM Analyzer; AppHelper es solo Decoder web).
-- **Connection monitor + cola** (Etapa 4): reintenta syncs pendientes cuando Django vuelve.
-- **Local server + Opción 3** (Etapa 5): `127.0.0.1:8765/status` y `/sync`; paneles en Decoder/TSM/Cart y chip en navbar.
-- **Write TSM + backups rotatorios** (Etapa 6).
-- **Polish** (Etapa 7): notificaciones, autostart, first-run wizard, Activity Log.
-- **Installer Windows** (Etapa 8): `npm run dist` genera `release/GoblinCompanion-Setup-*.exe` (NSIS).
+* ⚡ **Zero Manual Uploads**: Automatically detects changes to your WoW `SavedVariables` whenever you log out or type `/reload` in-game.
+* 📦 **Instant TSM Group Writing**: Safely writes TSM group assignments back into your WoW files without breaking formatting or losing data.
+* 🛡️ **Automated Rotating Backups**: Creates timestamped safety backups before every file write or sync operation.
+* 🌐 **Built-in Local API Server**: Runs a lightweight local HTTP server (`http://127.0.0.1:8765/status` and `/sync`) allowing web browser tabs to check companion status and trigger syncs seamlessly.
+* 📈 **Real-Time P&L Dashboard**: Displays your last 100 sold items with accurate buy prices, sell prices, net profit/loss, exact buy & sell dates in your local PC timezone, and auction post counts before sale.
+* 🗡️ **Wowhead Item Integration**: Displays official 3D WoW item icon thumbnails, exact WoW item quality colors (Lime Green, Blue, Epic Purple, Legendary Orange), and interactive Wowhead hover tooltips.
+* 🔔 **System Tray Integration**: Runs silently in the system tray with custom status indicators (Green, Yellow, Gray, Red) and starts automatically with Windows.
 
-Fase 2 (después de usar el MVP): P&L web, auto-updater, detectar Wow.exe, etc. — ver `docs/plan.md` §13.
+---
 
-## Requisitos
+## 🗺️ Integration Across Auction House Profit
 
-- Node.js 22+
-- Windows (target principal; el resto de plataformas no están probadas)
+Goblin Companion connects directly with key modules in the Auction House Profit web application:
 
-## Desarrollo
+1. **Arbitrage**: Instantly filters arbitrage opportunities against items you already own across your connected WoW characters and bank alt inventories.
+2. **Cart**: Export shopping lists or auto-write TSM group strings directly into your WoW configuration files with zero copy-pasting.
+3. **TSM Analyzer & Restock**: Evaluates total inventory valuation, unit margins, and automatically generates restock targets.
+4. **P&L (Profit & Loss)**: Tracks item flips and resale history with precise buy dates, sell dates, and number of posts before each sale.
+
+---
+
+## 💻 Tech Stack
+
+* **Core**: Electron 43, Node.js 22
+* **Frontend**: React 19, TypeScript 5, Vite 7
+* **Styling**: Vanilla CSS (Custom WoW RPG Design System with Glassmorphism & Gold Tokens)
+* **Storage**: `electron-store` (Persistent user settings & local cache)
+* **Watcher**: `chokidar` (File system watcher for WoW SavedVariables)
+* **Packaging**: `electron-builder` (NSIS Windows Installer)
+
+---
+
+## 🚀 Development & Build
+
+### Prerequisites
+
+* Node.js 22+
+* Windows 10/11 (Primary target OS)
+
+### Installation & Setup
 
 ```bash
+# Clone the repository
+git clone https://github.com/diegovergarabustamante-boop/goblin-companion.git
+cd goblin-companion
+
+# Install dependencies
 npm install
-npm run icon       # genera build/icon.png
-npm run dev        # abre la app con hot-reload
-npm run typecheck  # chequeo de tipos (main/preload + renderer)
-npm run build      # build de producción a out/
-npm run preview    # ejecuta el build de producción
-npm run dist       # typecheck + build + installer NSIS en release/
-npm run dist:dir   # empaqueta sin installer (carpeta win-unpacked)
+
+# Generate application icon
+npm run icon
+
+# Start development mode with hot-reload
+npm run dev
 ```
 
-El instalador queda en `release/GoblinCompanion-Setup-<version>.exe`. No está firmado con certificado de código (Windows puede mostrar SmartScreen la primera vez).
+### Available Scripts
 
-Copia `.env.example` a `.env` para fijar los valores por defecto (Django URL, token, etc.). Una vez guardes algo desde la pestaña **Settings**, `electron-store` (en `%APPDATA%/goblin-companion-settings`) manda sobre el `.env`.
+| Script | Description |
+| :--- | :--- |
+| `npm run dev` | Launches the app in development mode with Vite HMR |
+| `npm run icon` | Generates application icon (`build/icon.png` & `build/icon.ico`) |
+| `npm run typecheck` | Runs TypeScript type checking for main, preload, and renderer processes |
+| `npm run build` | Compiles production assets into `out/` |
+| `npm run dist` | Builds production bundle and generates NSIS Windows Installer (`release/GoblinCompanion-Setup-*.exe`) |
+| `npm run dist:dir` | Packages unpacked executable folder (`release/win-unpacked/`) |
 
-## Estructura
+---
+
+## 📁 Repository Structure
 
 ```
 goblin-companion/
 ├── electron/
-│   ├── main/       # proceso principal: ventana, tray, IPC, settings
-│   └── preload/     # puente contextBridge (window.goblin)
-├── shared/          # tipos compartidos entre main/preload/renderer
-├── src/              # renderer (React)
-│   ├── components/
-│   └── pages/
-├── build/           # icon.png (generado por npm run icon)
-├── scripts/         # generate-icon.mjs
-├── release/         # salida de npm run dist (gitignore)
-├── docs/plan.md
+│   ├── main/          # Main process: window management, IPC handlers, watcher, tray
+│   └── preload/       # ContextBridge IPC bridge (window.goblin)
+├── shared/            # Shared TypeScript types between main, preload, and renderer
+├── src/               # React Renderer UI
+│   ├── components/    # PnLSalesTable, CoinBadge, Navbar, Status Indicators
+│   └── pages/         # Dashboard, Activity Log, Backups, Settings, PnL
+├── public/            # Static assets & WoW RPG image badges
+├── scripts/           # generate-icon.mjs
+├── build/             # Application icons (icon.png & icon.ico)
+├── release/           # Distribution output (generated by npm run dist)
 └── electron-builder.yml
 ```
 
-La companion **nunca** reimplementa el parseo de `.lua` ni la contabilidad: eso vive en Django. Solo orquesta (mirar archivos, llamar endpoints, mostrar estado).
+---
+
+## 📄 License
+
+UNLICENSED. Copyright © Goblin Companion. All rights reserved.
