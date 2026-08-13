@@ -171,6 +171,43 @@ function WowItemLinkCell({
   )
 }
 
+// ─── Column Configuration ───────────────────────────────────────────────────
+export interface PnLColumnDef {
+  id: 'item' | 'buyer' | 'realm' | 'buyDate' | 'sellDate' | 'posts' | 'buyPrice' | 'sellPrice' | 'netProfit'
+  label: string
+  visible: boolean
+  widthPercent: number
+}
+
+const DEFAULT_COLUMNS: PnLColumnDef[] = [
+  { id: 'item', label: 'Item Name', visible: true, widthPercent: 20 },
+  { id: 'buyer', label: 'Bought By', visible: true, widthPercent: 12 },
+  { id: 'realm', label: 'Realm', visible: true, widthPercent: 12 },
+  { id: 'buyDate', label: 'Buy Date', visible: true, widthPercent: 11 },
+  { id: 'sellDate', label: 'Sell Date', visible: true, widthPercent: 11 },
+  { id: 'posts', label: 'Posts', visible: true, widthPercent: 7 },
+  { id: 'buyPrice', label: 'Buy Price', visible: true, widthPercent: 9 },
+  { id: 'sellPrice', label: 'Sell Price', visible: true, widthPercent: 9 },
+  { id: 'netProfit', label: 'Net Profit', visible: true, widthPercent: 9 }
+]
+
+const STORAGE_KEY = 'goblin_pnl_columns_config'
+
+function loadSavedColumns(): PnLColumnDef[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return DEFAULT_COLUMNS
+    const parsed = JSON.parse(raw) as PnLColumnDef[]
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_COLUMNS
+    // Ensure all default columns exist even if saved config is outdated
+    const savedIds = new Set(parsed.map((c) => c.id))
+    const missing = DEFAULT_COLUMNS.filter((c) => !savedIds.has(c.id))
+    return [...parsed, ...missing]
+  } catch {
+    return DEFAULT_COLUMNS
+  }
+}
+
 // ─── Deterministic Distinct Color Generator ─────────────────────────────────
 function stringToColor(str?: string): string {
   if (!str) return '#94a3b8'
@@ -198,6 +235,41 @@ export function PnLSalesTable() {
   const [totalRev, setTotalRev] = useState(0)
   const [totalCost, setTotalCost] = useState(0)
   const [totalProfit, setTotalProfit] = useState(0)
+
+  // Column customization state
+  const [columns, setColumns] = useState<PnLColumnDef[]>(loadSavedColumns)
+  const [showColMenu, setShowColMenu] = useState(false)
+
+  // Save column config on change
+  const updateColumns = (newCols: PnLColumnDef[]) => {
+    setColumns(newCols)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newCols))
+    } catch {
+      // Ignore storage write errors
+    }
+  }
+
+  const toggleColumnVisibility = (id: PnLColumnDef['id']) => {
+    const updated = columns.map((col) =>
+      col.id === id ? { ...col, visible: !col.visible } : col
+    )
+    updateColumns(updated)
+  }
+
+  const moveColumn = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= columns.length) return
+    const updated = [...columns]
+    const temp = updated[index]
+    updated[index] = updated[targetIndex]
+    updated[targetIndex] = temp
+    updateColumns(updated)
+  }
+
+  const resetColumns = () => {
+    updateColumns(DEFAULT_COLUMNS)
+  }
 
   const loadSales = async () => {
     setLoading(true)
@@ -230,7 +302,7 @@ export function PnLSalesTable() {
   // Refresh Wowhead every time sales list renders
   useEffect(() => {
     if (sales.length > 0) setTimeout(refreshWowhead, 250)
-  }, [sales])
+  }, [sales, columns])
 
   const filteredSales = sales.filter((s) => {
     const q = searchQuery.toLowerCase().trim()
@@ -240,6 +312,14 @@ export function PnLSalesTable() {
     const matchesRealm = s.realm ? s.realm.toLowerCase().includes(q) : false
     return matchesName || matchesBuyer || matchesRealm
   })
+
+  // Visible columns & scaling widths
+  const visibleCols = columns.filter((c) => c.visible)
+  const totalWeight = visibleCols.reduce((sum, c) => sum + c.widthPercent, 0) || 1
+
+  const getColWidth = (col: PnLColumnDef): string => {
+    return `${((col.widthPercent / totalWeight) * 100).toFixed(1)}%`
+  }
 
   const thStyle = (textAlign: 'left' | 'center' | 'right', width: string, isLast = false): React.CSSProperties => ({
     padding: '12px 8px', width, textAlign, color: '#fbbf24',
@@ -257,6 +337,92 @@ export function PnLSalesTable() {
     borderBottom: '1px solid rgba(255,255,255,0.04)',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
   })
+
+  // Render individual cell by column ID
+  const renderTableCell = (
+    colId: PnLColumnDef['id'],
+    sale: RecentSaleItemDto,
+    isLast: boolean,
+    bId: number | null,
+    isProfit: boolean
+  ) => {
+    switch (colId) {
+      case 'item':
+        return (
+          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible' }}>
+            <WowItemLinkCell blizzardId={bId} itemName={sale.itemName} quantity={sale.quantity} />
+          </td>
+        )
+      case 'buyer':
+        return (
+          <td
+            key={colId}
+            style={{
+              ...tdStyle('center', isLast),
+              color: sale.buyer ? stringToColor(sale.buyer) : '#64748b',
+              fontWeight: 600
+            }}
+            title={sale.buyer ? `Bought by: ${sale.buyer}` : undefined}
+          >
+            {sale.buyer || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
+          </td>
+        )
+      case 'realm':
+        return (
+          <td
+            key={colId}
+            style={{
+              ...tdStyle('center', isLast),
+              color: sale.realm ? stringToColor(sale.realm) : '#64748b',
+              fontWeight: 600
+            }}
+            title={sale.realm ? `Realm: ${sale.realm}` : undefined}
+          >
+            {sale.realm || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
+          </td>
+        )
+      case 'buyDate':
+        return (
+          <td key={colId} style={{ ...tdStyle('center', isLast), color: '#94a3b8', fontSize: '0.85em' }}>
+            {formatLocalDateTime(sale.buyTimeTs, sale.boughtAt)}
+          </td>
+        )
+      case 'sellDate':
+        return (
+          <td key={colId} style={{ ...tdStyle('center', isLast), color: '#94a3b8', fontSize: '0.85em' }}>
+            {formatLocalDateTime(sale.sellTimeTs, sale.soldAt)}
+          </td>
+        )
+      case 'posts':
+        return (
+          <td key={colId} style={tdStyle('center', isLast)}>
+            <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: '0.82em', fontWeight: 700, background: sale.postsBeforeSale > 5 ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)', color: sale.postsBeforeSale > 5 ? '#fbbf24' : '#60a5fa', border: sale.postsBeforeSale > 5 ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(96,165,250,0.3)' }}>
+              {sale.postsBeforeSale} {sale.postsBeforeSale === 1 ? 'post' : 'posts'}
+            </span>
+          </td>
+        )
+      case 'buyPrice':
+        return (
+          <td key={colId} style={tdStyle('center', isLast)}>
+            <CoinBadge copper={sale.buyPriceCopper} />
+          </td>
+        )
+      case 'sellPrice':
+        return (
+          <td key={colId} style={tdStyle('center', isLast)}>
+            <CoinBadge copper={sale.sellPriceCopper} />
+          </td>
+        )
+      case 'netProfit':
+        return (
+          <td key={colId} style={{ ...tdStyle('center', isLast), fontWeight: 700, color: isProfit ? '#4ade80' : '#f87171', background: isProfit ? 'rgba(74,222,128,0.05)' : 'rgba(248,113,113,0.05)' }}>
+            <CoinBadge copper={sale.netProfitCopper} />
+          </td>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -296,9 +462,154 @@ export function PnLSalesTable() {
       {/* Table */}
       <section className="glass-panel" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
-          <input type="text" className="input" placeholder="Search items, buyers, or realms..." value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ padding: '8px 14px', fontSize: '0.88em', maxWidth: 380, flex: 1 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, maxWidth: 540 }}>
+            <input
+              type="text"
+              className="input"
+              placeholder="Search items, buyers, or realms..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: '8px 14px', fontSize: '0.88em', flex: 1 }}
+            />
+
+            {/* Column Customizer Button & Popover Menu */}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => setShowColMenu(!showColMenu)}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '0.85em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderColor: showColMenu ? '#fbbf24' : undefined,
+                  background: showColMenu ? 'rgba(251,191,36,0.15)' : undefined
+                }}
+                title="Configure and reorder table columns"
+              >
+                <span>⚙️ Columns</span>
+                <span style={{ fontSize: '0.7em', opacity: 0.8 }}>{showColMenu ? '▲' : '▼'}</span>
+              </button>
+
+              {showColMenu && (
+                <div
+                  className="glass-panel"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: 0,
+                    zIndex: 100,
+                    width: 300,
+                    padding: '14px 16px',
+                    background: 'rgba(15, 10, 5, 0.96)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(251, 191, 36, 0.4)',
+                    borderRadius: 10,
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.85)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(251,191,36,0.2)' }}>
+                    <div style={{ fontWeight: 700, color: '#fbbf24', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚙️</span> Column Settings
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetColumns}
+                      style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78em', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Reset Default
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
+                    {columns.map((col, idx) => (
+                      <div
+                        key={col.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justify: 'space-between',
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          background: col.visible ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(255,255,255,0.06)'
+                        }}
+                      >
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85em', color: col.visible ? '#f8fafc' : '#64748b', flex: 1, userSelect: 'none' }}>
+                          <input
+                            type="checkbox"
+                            checked={col.visible}
+                            onChange={() => toggleColumnVisibility(col.id)}
+                            style={{ accentColor: '#fbbf24', cursor: 'pointer' }}
+                          />
+                          <span>{col.label}</span>
+                        </label>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() => moveColumn(idx, 'up')}
+                            disabled={idx === 0}
+                            style={{
+                              background: 'rgba(255,255,255,0.06)',
+                              border: 'none',
+                              borderRadius: 4,
+                              color: idx === 0 ? '#475569' : '#fbbf24',
+                              width: 24,
+                              height: 24,
+                              fontSize: '0.75em',
+                              cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Move column up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveColumn(idx, 'down')}
+                            disabled={idx === columns.length - 1}
+                            style={{
+                              background: 'rgba(255,255,255,0.06)',
+                              border: 'none',
+                              borderRadius: 4,
+                              color: idx === columns.length - 1 ? '#475569' : '#fbbf24',
+                              width: 24,
+                              height: 24,
+                              fontSize: '0.75em',
+                              cursor: idx === columns.length - 1 ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            title="Move column down"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => setShowColMenu(false)}
+                      style={{ padding: '4px 12px', fontSize: '0.8em' }}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>Showing {filteredSales.length} of {sales.length} recent sales</span>
             <button type="button" className="btn btn--secondary" onClick={() => void loadSales()} disabled={loading} style={{ padding: '8px 14px', fontSize: '0.85em' }}>
@@ -320,20 +631,24 @@ export function PnLSalesTable() {
           <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
             No sales records found. Sync your <code>TradeSkillMaster.lua</code> to populate sales.
           </div>
+        ) : visibleCols.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#fbbf24' }}>
+            ⚠️ All table columns are currently hidden. Click <strong>⚙️ Columns</strong> above to enable visible columns.
+          </div>
         ) : (
           <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(251,191,36,0.25)', overflowY: 'visible' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
-                  <th style={thStyle('center', '20%')} title="Item Name">Item Name</th>
-                  <th style={thStyle('center', '12%')} title="Bought By / Buyer">Bought By</th>
-                  <th style={thStyle('center', '12%')} title="Realm">Realm</th>
-                  <th style={thStyle('center', '11%')} title="Buy Date">Buy Date</th>
-                  <th style={thStyle('center', '11%')} title="Sell Date">Sell Date</th>
-                  <th style={thStyle('center', '7%')} title="Posts Before Sale">Posts</th>
-                  <th style={thStyle('center', '9%')} title="Buy Price">Buy Price</th>
-                  <th style={thStyle('center', '9%')} title="Sell Price">Sell Price</th>
-                  <th style={thStyle('center', '9%', true)} title="Net Profit / Loss">Net Profit</th>
+                  {visibleCols.map((col, i) => (
+                    <th
+                      key={col.id}
+                      style={thStyle('center', getColWidth(col), i === visibleCols.length - 1)}
+                      title={col.label}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -349,62 +664,9 @@ export function PnLSalesTable() {
                       onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.08)' }}
                       onMouseOut={(e) => { e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)' }}
                     >
-                      {/* Item cell with icon, quality color & Wowhead tooltip */}
-                      <td style={{ ...tdStyle('center'), overflow: 'visible' }}>
-                        <WowItemLinkCell
-                          blizzardId={bId}
-                          itemName={sale.itemName}
-                          quantity={sale.quantity}
-                        />
-                      </td>
-
-                      {/* Bought By (Buyer) */}
-                      <td
-                        style={{
-                          ...tdStyle('center'),
-                          color: sale.buyer ? stringToColor(sale.buyer) : '#64748b',
-                          fontWeight: 600
-                        }}
-                        title={sale.buyer ? `Bought by: ${sale.buyer}` : undefined}
-                      >
-                        {sale.buyer || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
-                      </td>
-
-                      {/* Realm */}
-                      <td
-                        style={{
-                          ...tdStyle('center'),
-                          color: sale.realm ? stringToColor(sale.realm) : '#64748b',
-                          fontWeight: 600
-                        }}
-                        title={sale.realm ? `Realm: ${sale.realm}` : undefined}
-                      >
-                        {sale.realm || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
-                      </td>
-
-                      {/* Buy Date (formatted in user's local PC timezone) */}
-                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>
-                        {formatLocalDateTime(sale.buyTimeTs, sale.boughtAt)}
-                      </td>
-
-                      {/* Sell Date (formatted in user's local PC timezone) */}
-                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>
-                        {formatLocalDateTime(sale.sellTimeTs, sale.soldAt)}
-                      </td>
-
-                      {/* Posts Before Sale */}
-                      <td style={tdStyle('center')}>
-                        <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: '0.82em', fontWeight: 700, background: sale.postsBeforeSale > 5 ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)', color: sale.postsBeforeSale > 5 ? '#fbbf24' : '#60a5fa', border: sale.postsBeforeSale > 5 ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(96,165,250,0.3)' }}>
-                          {sale.postsBeforeSale} {sale.postsBeforeSale === 1 ? 'post' : 'posts'}
-                        </span>
-                      </td>
-
-                      <td style={tdStyle('center')}><CoinBadge copper={sale.buyPriceCopper} /></td>
-                      <td style={tdStyle('center')}><CoinBadge copper={sale.sellPriceCopper} /></td>
-
-                      <td style={{ ...tdStyle('center', true), fontWeight: 700, color: isProfit ? '#4ade80' : '#f87171', background: isProfit ? 'rgba(74,222,128,0.05)' : 'rgba(248,113,113,0.05)' }}>
-                        <CoinBadge copper={sale.netProfitCopper} />
-                      </td>
+                      {visibleCols.map((col, i) =>
+                        renderTableCell(col.id, sale, i === visibleCols.length - 1, bId, isProfit)
+                      )}
                     </tr>
                   )
                 })}
@@ -416,3 +678,4 @@ export function PnLSalesTable() {
     </div>
   )
 }
+
