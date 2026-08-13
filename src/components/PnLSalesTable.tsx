@@ -220,9 +220,14 @@ export function PnLSalesTable() {
     if (sales.length > 0) setTimeout(refreshWowhead, 250)
   }, [sales])
 
-  const filteredSales = sales.filter((s) =>
-    s.itemName.toLowerCase().includes(searchQuery.toLowerCase().trim())
-  )
+  const filteredSales = sales.filter((s) => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return true
+    const matchesName = s.itemName.toLowerCase().includes(q)
+    const matchesBuyer = s.buyer ? s.buyer.toLowerCase().includes(q) : false
+    const matchesRealm = s.realm ? s.realm.toLowerCase().includes(q) : false
+    return matchesName || matchesBuyer || matchesRealm
+  })
 
   const thStyle = (textAlign: 'left' | 'center' | 'right', width: string, isLast = false): React.CSSProperties => ({
     padding: '12px 8px', width, textAlign, color: '#fbbf24',
@@ -279,7 +284,7 @@ export function PnLSalesTable() {
       {/* Table */}
       <section className="glass-panel" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
-          <input type="text" className="input" placeholder="Search sold items..." value={searchQuery}
+          <input type="text" className="input" placeholder="Search items, buyers, or realms..." value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ padding: '8px 14px', fontSize: '0.88em', maxWidth: 380, flex: 1 }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -308,13 +313,15 @@ export function PnLSalesTable() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
-                  <th style={thStyle('center', '26%')} title="Item Name">Item Name</th>
-                  <th style={thStyle('center', '14%')} title="Buy Date">Buy Date</th>
-                  <th style={thStyle('center', '14%')} title="Sell Date">Sell Date</th>
-                  <th style={thStyle('center', '12%')} title="Posts Before Sale">Posts Before Sale</th>
-                  <th style={thStyle('center', '11%')} title="Buy Price">Buy Price</th>
-                  <th style={thStyle('center', '11%')} title="Sell Price">Sell Price</th>
-                  <th style={thStyle('center', '12%', true)} title="Net Profit / Loss">Net Profit / Loss</th>
+                  <th style={thStyle('center', '20%')} title="Item Name">Item Name</th>
+                  <th style={thStyle('center', '12%')} title="Bought By / Buyer">Bought By</th>
+                  <th style={thStyle('center', '12%')} title="Realm">Realm</th>
+                  <th style={thStyle('center', '11%')} title="Buy Date">Buy Date</th>
+                  <th style={thStyle('center', '11%')} title="Sell Date">Sell Date</th>
+                  <th style={thStyle('center', '7%')} title="Posts Before Sale">Posts</th>
+                  <th style={thStyle('center', '9%')} title="Buy Price">Buy Price</th>
+                  <th style={thStyle('center', '9%')} title="Sell Price">Sell Price</th>
+                  <th style={thStyle('center', '9%', true)} title="Net Profit / Loss">Net Profit</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,6 +344,16 @@ export function PnLSalesTable() {
                           itemName={sale.itemName}
                           quantity={sale.quantity}
                         />
+                      </td>
+
+                      {/* Bought By (Buyer) */}
+                      <td style={{ ...tdStyle('center'), color: '#e2e8f0', fontWeight: 500 }} title={sale.buyer ? `Bought by: ${sale.buyer}` : undefined}>
+                        {sale.buyer || <span style={{ color: '#64748b', fontStyle: 'italic' }}>—</span>}
+                      </td>
+
+                      {/* Realm */}
+                      <td style={{ ...tdStyle('center'), color: '#cbd5e1', fontWeight: 500 }} title={sale.realm ? `Realm: ${sale.realm}` : undefined}>
+                        {sale.realm || <span style={{ color: '#64748b', fontStyle: 'italic' }}>—</span>}
                       </td>
 
                       {/* Buy Date (formatted in user's local PC timezone) */}
