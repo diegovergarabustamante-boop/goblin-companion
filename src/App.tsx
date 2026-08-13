@@ -51,7 +51,7 @@ function App(): JSX.Element {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
-          background: 'var(--color-bg) url("/images/bg/fantasy_merchant_ledger.png") no-repeat center center fixed',
+          background: 'var(--color-bg) url("/images/bg/trade_princes_vault.png") no-repeat center center fixed',
           backgroundSize: 'cover',
           color: '#fbbf24',
           fontFamily: 'var(--font-header)',
