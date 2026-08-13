@@ -56,16 +56,6 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
           position: 'relative'
         }}
       >
-        {/* Dark overlay for login screen backdrop */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(11, 15, 25, 0.38)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 0
-          }}
-        />
 
         <div
           className="glass-panel"

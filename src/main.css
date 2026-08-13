@@ -129,17 +129,6 @@ body {
   position: relative;
 }
 
-/* Dark semi-transparent overlay for rich contrast while showing gold vault background */
-body::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(11, 15, 25, 0.38);
-  backdrop-filter: blur(1.5px);
-  z-index: 0;
-  pointer-events: none;
-}
-
 #root {
   position: relative;
   z-index: 1;
