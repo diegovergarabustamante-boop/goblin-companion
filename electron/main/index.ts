@@ -44,12 +44,12 @@ let mainWindow: BrowserWindow | null = null
 
 function resolveAppIcon(): NativeImage | undefined {
   const candidates = [
-    join(app.getAppPath(), 'build/icon.ico'),
     join(app.getAppPath(), 'public/images/goblin_assets/coin_badge_1.png'),
-    join(app.getAppPath(), 'build/icon.png'),
-    join(import.meta.dirname, '../../build/icon.ico'),
     join(import.meta.dirname, '../../public/images/goblin_assets/coin_badge_1.png'),
+    join(app.getAppPath(), 'build/icon.png'),
+    join(app.getAppPath(), 'build/icon.ico'),
     join(import.meta.dirname, '../../build/icon.png'),
+    join(import.meta.dirname, '../../build/icon.ico'),
     join(process.resourcesPath, 'icon.ico'),
     join(process.resourcesPath, 'icon.png')
   ]
