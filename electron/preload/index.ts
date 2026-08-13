@@ -89,6 +89,9 @@ const goblinApi = {
   getRecentSales: (limit = 100): Promise<import('../main/http-client').RecentSalesResponseDto> =>
     ipcRenderer.invoke(IpcChannel.GetRecentSales, limit),
 
+  getItemTooltip: (blizzardId: number): Promise<import('../main/http-client').ItemTooltipDto | null> =>
+    ipcRenderer.invoke(IpcChannel.GetItemTooltip, blizzardId),
+
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 
   minimizeWindow: (): void => ipcRenderer.send(IpcChannel.WindowMinimize),

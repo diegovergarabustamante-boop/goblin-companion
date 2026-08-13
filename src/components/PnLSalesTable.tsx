@@ -73,23 +73,17 @@ function useItemTooltip(blizzardId: number | null): ItemTooltipData | null {
     tooltipCache[blizzardId] = 'pending'
     let active = true
 
-    fetch(`https://nether.wowhead.com/tooltip/item/${blizzardId}?dataEnv=4&locale=0`)
-      .then((r) => r.json())
-      .then((body) => {
-        if (!active) return
-        const quality = typeof body?.quality === 'number' ? body.quality : 1
-        const iconName: string = body?.icon ?? ''
-        const iconUrl = iconName
-          ? `https://wow.zamimg.com/images/wow/icons/medium/${iconName}.jpg`
-          : ''
-        const result: ItemTooltipData = { quality, iconUrl }
+    // Use IPC (Node.js main process) — avoids CORS entirely
+    void (window.goblin?.getItemTooltip(blizzardId) ?? Promise.resolve(null)).then((body) => {
+      if (!active) return
+      if (body && typeof body.quality === 'number') {
+        const result: ItemTooltipData = { quality: body.quality, iconUrl: body.iconUrl ?? '' }
         tooltipCache[blizzardId!] = result
         setData(result)
-      })
-      .catch(() => {
-        if (!active) return
+      } else {
         tooltipCache[blizzardId!] = 'error'
-      })
+      }
+    })
 
     return () => { active = false }
   }, [blizzardId])

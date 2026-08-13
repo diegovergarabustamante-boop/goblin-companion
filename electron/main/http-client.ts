@@ -509,3 +509,45 @@ export async function fetchRecentSales(
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+// ── Wowhead item tooltip (fetched from Node.js to bypass CORS) ──────────────
+
+export interface ItemTooltipDto {
+  quality: number
+  iconUrl: string
+  name: string
+}
+
+const itemTooltipCache = new Map<number, ItemTooltipDto>()
+
+export async function fetchItemTooltip(blizzardId: number): Promise<ItemTooltipDto | null> {
+  if (itemTooltipCache.has(blizzardId)) {
+    return itemTooltipCache.get(blizzardId)!
+  }
+
+  try {
+    const url = `https://nether.wowhead.com/tooltip/item/${blizzardId}?dataEnv=4&locale=0`
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; GoblinCompanion/1.0)',
+        Accept: 'application/json'
+      }
+    })
+    if (!resp.ok) return null
+
+    const body = (await resp.json()) as { quality?: number; icon?: string; name?: string } | null
+    if (!body) return null
+
+    const result: ItemTooltipDto = {
+      quality: typeof body.quality === 'number' ? body.quality : 1,
+      iconUrl: body.icon
+        ? `https://wow.zamimg.com/images/wow/icons/medium/${body.icon}.jpg`
+        : '',
+      name: body.name ?? ''
+    }
+    itemTooltipCache.set(blizzardId, result)
+    return result
+  } catch {
+    return null
+  }
+}

@@ -22,7 +22,7 @@ import {
   restoreBackup
 } from './backup-manager'
 import { startConnectionMonitor, stopConnectionMonitor } from './connection-monitor'
-import { executeTsmWrite, fetchRecentSales, loginDjango, pingDjango, previewTsmWrite } from './http-client'
+import { executeTsmWrite, fetchItemTooltip, fetchRecentSales, loginDjango, pingDjango, previewTsmWrite } from './http-client'
 import { loadDotEnv } from './load-env'
 import { startLocalServer, stopLocalServer } from './local-server'
 import { notify } from './notifications'
@@ -279,6 +279,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.PreviewTsmWrite, () => runTsmWritePreview())
   ipcMain.handle(IpcChannel.ConfirmTsmWrite, (_event, assignments) => runTsmWriteConfirm(assignments))
   ipcMain.handle(IpcChannel.GetRecentSales, (_event, limit?: number) => fetchRecentSales(getSettings(), limit))
+  ipcMain.handle(IpcChannel.GetItemTooltip, (_event, blizzardId: number) => fetchItemTooltip(blizzardId))
 }
 
 const gotLock = app.requestSingleInstanceLock()

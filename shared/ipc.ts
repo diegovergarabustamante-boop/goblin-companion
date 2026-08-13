@@ -19,6 +19,7 @@ export const IpcChannel = {
   PreviewTsmWrite: 'tsm:preview-write',
   ConfirmTsmWrite: 'tsm:confirm-write',
   GetRecentSales: 'sales:get-recent',
+  GetItemTooltip: 'item:get-tooltip',
   NavigateTo: 'nav:goto',
   LoginCompanion: 'auth:login',
   LogoutCompanion: 'auth:logout',
