@@ -85,6 +85,10 @@ function createMainWindow(): BrowserWindow {
     }
   })
 
+  if (bounds.x === undefined || bounds.y === undefined) {
+    window.center()
+  }
+
   if (appIcon) {
     window.setIcon(appIcon)
   }
@@ -97,8 +101,14 @@ function createMainWindow(): BrowserWindow {
     }
   })
 
-  window.on('resized', () => saveWindowBounds(window.getBounds()))
-  window.on('moved', () => saveWindowBounds(window.getBounds()))
+  const handleBoundsChange = () => {
+    if (window && !window.isMinimized() && !window.isMaximized() && window.isVisible()) {
+      saveWindowBounds(window.getBounds())
+    }
+  }
+
+  window.on('resized', handleBoundsChange)
+  window.on('moved', handleBoundsChange)
 
   window.on('close', (event) => {
     if (isQuittingApp()) return
