@@ -51,7 +51,7 @@ export default function LoginScreen({ initialSettings, onLoginSuccess }: LoginSc
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px',
-          background: 'var(--color-bg) url("./images/bg/trade_princes_vault.png") no-repeat center center fixed',
+          background: 'var(--color-bg) url("images/bg/trade_princes_vault.png") no-repeat center center fixed',
           backgroundSize: 'cover',
           position: 'relative'
         }}
