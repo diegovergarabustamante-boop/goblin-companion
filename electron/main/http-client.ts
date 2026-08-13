@@ -417,6 +417,7 @@ export async function completePendingWrite(
 export interface RecentSaleItemDto {
   id: string
   itemId: string
+  blizzardId?: number
   itemName: string
   soldAt: string
   quantity: number
@@ -459,6 +460,7 @@ export async function fetchRecentSales(
       sales?: Array<{
         id: string
         item_id: string
+        blizzard_id?: number
         item_name: string
         sold_at: string
         quantity: number
@@ -483,6 +485,7 @@ export async function fetchRecentSales(
     const salesList: RecentSaleItemDto[] = (body.sales ?? []).map((s) => ({
       id: s.id,
       itemId: s.item_id,
+      blizzardId: s.blizzard_id,
       itemName: s.item_name,
       soldAt: s.sold_at,
       quantity: s.quantity,

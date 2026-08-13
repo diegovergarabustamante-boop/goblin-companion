@@ -86,6 +86,17 @@ export function PnLSalesTable() {
   const [totalCost, setTotalCost] = useState(0)
   const [totalProfit, setTotalProfit] = useState(0)
 
+  // Load Wowhead tooltips script
+  useEffect(() => {
+    if (!document.getElementById('wowhead-script')) {
+      const script = document.createElement('script')
+      script.id = 'wowhead-script'
+      script.src = 'https://wow.zamimg.com/js/tooltips.js'
+      script.async = true
+      document.body.appendChild(script)
+    }
+  }, [])
+
   const loadSales = async () => {
     setLoading(true)
     setError(null)
@@ -97,6 +108,13 @@ export function PnLSalesTable() {
           setTotalRev(res.totalRevenueCopper ?? 0)
           setTotalCost(res.totalCostCopper ?? 0)
           setTotalProfit(res.totalProfitCopper ?? 0)
+
+          // Refresh Wowhead tooltips after DOM updates
+          setTimeout(() => {
+            if ((window as unknown as { $WowheadPower?: { refreshLinks?: () => void } }).$WowheadPower?.refreshLinks) {
+              (window as unknown as { $WowheadPower: { refreshLinks: () => void } }).$WowheadPower.refreshLinks()
+            }
+          }, 300)
         } else {
           setError(res.error ?? 'Could not fetch sales history from TSM Accounting.')
         }
@@ -117,6 +135,31 @@ export function PnLSalesTable() {
   const filteredSales = sales.filter((s) =>
     s.itemName.toLowerCase().includes(searchQuery.toLowerCase().trim())
   )
+
+  // Helper styles for vertical borders & clean layout
+  const thStyle = (textAlign: 'left' | 'center' | 'right', width: string, isLast = false): React.CSSProperties => ({
+    padding: '12px 14px',
+    width,
+    textAlign,
+    color: '#fbbf24',
+    fontFamily: 'var(--font-header, sans-serif)',
+    letterSpacing: '0.04em',
+    borderRight: isLast ? 'none' : '1px solid rgba(251, 191, 36, 0.35)',
+    borderBottom: '1px solid rgba(251, 191, 36, 0.35)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  })
+
+  const tdStyle = (textAlign: 'left' | 'center' | 'right', isLast = false): React.CSSProperties => ({
+    padding: '10px 14px',
+    textAlign,
+    borderRight: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -300,76 +343,92 @@ export function PnLSalesTable() {
             No sales records found matching your filter. Sync your <code>TradeSkillMaster.lua</code> to populate sales.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.18)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.25)' }}>
             <table
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: '0.88em',
-                textAlign: 'left'
+                tableLayout: 'fixed'
               }}
             >
               <thead>
-                <tr
-                  style={{
-                    background: 'rgba(30, 22, 8, 0.85)',
-                    borderBottom: '1px solid rgba(251, 191, 36, 0.3)',
-                    color: '#fbbf24',
-                    fontFamily: 'var(--font-header)',
-                    letterSpacing: '0.04em'
-                  }}
-                >
-                  <th style={{ padding: '10px 14px', width: '35%' }}>Item Name</th>
-                  <th style={{ padding: '10px 14px', width: '15%' }}>Date / Time</th>
-                  <th style={{ padding: '10px 14px', width: '12%', textAlign: 'center' }}>Posts Before Sale</th>
-                  <th style={{ padding: '10px 14px', width: '13%', textAlign: 'right' }}>Buy Price</th>
-                  <th style={{ padding: '10px 14px', width: '13%', textAlign: 'right' }}>Sell Price</th>
-                  <th style={{ padding: '10px 14px', width: '12%', textAlign: 'right' }}>Net Profit / Loss</th>
+                <tr style={{ background: 'rgba(30, 22, 8, 0.95)' }}>
+                  <th style={thStyle('left', '32%')}>Item Name</th>
+                  <th style={thStyle('center', '16%')}>Date / Time</th>
+                  <th style={thStyle('center', '14%')}>Posts Before Sale</th>
+                  <th style={thStyle('center', '13%')}>Buy Price</th>
+                  <th style={thStyle('center', '13%')}>Sell Price</th>
+                  <th style={thStyle('center', '12%', true)}>Net Profit / Loss</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSales.map((sale, index) => {
                   const isProfit = sale.netProfitCopper >= 0
+                  const bId =
+                    sale.blizzardId ||
+                    (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
+
                   return (
                     <tr
                       key={sale.id || index}
                       style={{
-                        background: index % 2 === 0 ? 'rgba(15, 10, 5, 0.4)' : 'rgba(25, 18, 9, 0.6)',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                        background: index % 2 === 0 ? 'rgba(15, 10, 5, 0.45)' : 'rgba(25, 18, 9, 0.65)',
                         transition: 'background 0.15s ease'
                       }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(251, 191, 36, 0.08)'
+                        e.currentTarget.style.background = 'rgba(251, 191, 36, 0.1)'
                       }}
                       onMouseOut={(e) => {
                         e.currentTarget.style.background =
-                          index % 2 === 0 ? 'rgba(15, 10, 5, 0.4)' : 'rgba(25, 18, 9, 0.6)'
+                          index % 2 === 0 ? 'rgba(15, 10, 5, 0.45)' : 'rgba(25, 18, 9, 0.65)'
                       }}
                     >
-                      {/* Item Name */}
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {/* Item Name with Wowhead Link */}
+                      <td style={tdStyle('left')}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                           <img
                             src="/images/goblin_assets/icon_inventory.png"
                             alt=""
-                            style={{ width: 20, height: 20, objectFit: 'contain' }}
+                            style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
                           />
-                          <span>
-                            {sale.itemName}{' '}
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {bId ? (
+                              <a
+                                href={`https://www.wowhead.com/item=${bId}`}
+                                data-wowhead={`item=${bId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: '#f1f5f9',
+                                  textDecoration: 'none',
+                                  fontWeight: 600,
+                                  transition: 'color 0.15s ease'
+                                }}
+                                onMouseOver={(e) => (e.currentTarget.style.color = '#fbbf24')}
+                                onMouseOut={(e) => (e.currentTarget.style.color = '#f1f5f9')}
+                              >
+                                {sale.itemName}
+                              </a>
+                            ) : (
+                              <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{sale.itemName}</span>
+                            )}
                             {sale.quantity > 1 && (
-                              <span style={{ color: '#fbbf24', fontSize: '0.85em' }}>x{sale.quantity}</span>
+                              <span style={{ color: '#fbbf24', fontSize: '0.85em', marginLeft: '4px' }}>
+                                x{sale.quantity}
+                              </span>
                             )}
                           </span>
                         </div>
                       </td>
 
                       {/* Date / Time */}
-                      <td style={{ padding: '10px 14px', color: '#94a3b8', fontSize: '0.85em', whiteSpace: 'nowrap' }}>
+                      <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>
                         {sale.soldAt || 'Unknown'}
                       </td>
 
                       {/* Posts Before Sale */}
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <td style={tdStyle('center')}>
                         <span
                           style={{
                             display: 'inline-block',
@@ -387,20 +446,19 @@ export function PnLSalesTable() {
                       </td>
 
                       {/* Buy Price */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <td style={tdStyle('center')}>
                         <CoinBadge copper={sale.buyPriceCopper} />
                       </td>
 
                       {/* Sell Price */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <td style={tdStyle('center')}>
                         <CoinBadge copper={sale.sellPriceCopper} />
                       </td>
 
                       {/* Net Profit / Loss */}
                       <td
                         style={{
-                          padding: '10px 14px',
-                          textAlign: 'right',
+                          ...tdStyle('center', true),
                           fontWeight: 700,
                           color: isProfit ? '#4ade80' : '#f87171',
                           background: isProfit ? 'rgba(74, 222, 128, 0.05)' : 'rgba(248, 113, 113, 0.05)'
