@@ -796,10 +796,9 @@ body {
    Wowhead sets color via inline style="color: #xxxx" which has higher
    specificity than this class rule — so quality colors will always win. */
 a[data-wowhead] {
-  color: #ccbf7a; /* fallback warm gold until Wowhead processes the link */
   text-decoration: none;
   font-weight: 600;
 }
 a[data-wowhead]:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.25);
 }

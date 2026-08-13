@@ -32,6 +32,124 @@ export function CoinBadge({ copper }: { copper: number }) {
   )
 }
 
+// ─── Official WoW Quality Colors ──────────────────────────────────────────────
+const WOW_QUALITY_COLORS: Record<number, string> = {
+  0: '#9d9d9d', // Poor (Gray)
+  1: '#ffffff', // Common (White)
+  2: '#1eff00', // Uncommon (Green)
+  3: '#0070dd', // Rare (Blue)
+  4: '#a335ee', // Epic (Purple)
+  5: '#ff8000', // Legendary (Orange)
+  6: '#e6cc80', // Artifact (Gold)
+  7: '#00ccff'  // Heirloom (Cyan)
+}
+
+interface ItemMeta {
+  quality: number
+  iconUrl: string
+}
+
+const itemMetaCache: Record<number, ItemMeta> = {}
+
+function WowItemLinkCell({
+  blizzardId,
+  itemName,
+  quantity
+}: {
+  blizzardId: number | null
+  itemName: string
+  quantity: number
+}) {
+  const [meta, setMeta] = useState<ItemMeta | null>(
+    blizzardId && itemMetaCache[blizzardId] ? itemMetaCache[blizzardId] : null
+  )
+
+  useEffect(() => {
+    if (!blizzardId || itemMetaCache[blizzardId]) return
+    let active = true
+
+    if (window.goblin?.getItemTooltip) {
+      window.goblin.getItemTooltip(blizzardId).then((res) => {
+        if (active && res) {
+          const itemMeta = {
+            quality: typeof res.quality === 'number' ? res.quality : 2,
+            iconUrl: res.iconUrl || '/images/goblin_assets/icon_inventory.png'
+          }
+          itemMetaCache[blizzardId] = itemMeta
+          setMeta(itemMeta)
+
+          // Refresh Wowhead tooltips binding after DOM update
+          setTimeout(() => {
+            const wh = window as unknown as { $WowheadPower?: { refreshLinks?: () => void } }
+            wh.$WowheadPower?.refreshLinks?.()
+          }, 150)
+        }
+      })
+    }
+
+    return () => {
+      active = false
+    }
+  }, [blizzardId])
+
+  const qualityColor = meta ? (WOW_QUALITY_COLORS[meta.quality] || '#1eff00') : '#1eff00'
+  const iconUrl = meta?.iconUrl || '/images/goblin_assets/icon_inventory.png'
+  const wowUrl = blizzardId ? `https://www.wowhead.com/item=${blizzardId}` : null
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+      <img
+        src={iconUrl}
+        alt=""
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 4,
+          border: `1px solid ${qualityColor}aa`,
+          boxShadow: `0 0 4px ${qualityColor}33`,
+          objectFit: 'cover',
+          flexShrink: 0,
+          background: '#0a0d14'
+        }}
+      />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {wowUrl && blizzardId ? (
+          <a
+            href={wowUrl}
+            data-wowhead={`item=${blizzardId}`}
+            className={`q q${meta?.quality ?? 2}`}
+            onClick={(e) => {
+              e.preventDefault()
+              if (window.goblin?.openExternal) void window.goblin.openExternal(wowUrl)
+            }}
+            style={{
+              color: qualityColor,
+              fontWeight: 700,
+              textDecoration: 'none',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              textShadow: `0 0 6px ${qualityColor}44`,
+              transition: 'filter 0.15s ease'
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.filter = 'brightness(1.35)')}
+            onMouseOut={(e) => (e.currentTarget.style.filter = 'none')}
+          >
+            {itemName}
+          </a>
+        ) : (
+          <span style={{ fontWeight: 700, color: qualityColor }}>{itemName}</span>
+        )}
+        {quantity > 1 && (
+          <span style={{ color: '#fbbf24', fontSize: '0.85em', marginLeft: '5px', fontWeight: 700 }}>
+            x{quantity}
+          </span>
+        )}
+      </span>
+    </div>
+  )
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function refreshWowhead() {
   const wh = window as unknown as { $WowheadPower?: { refreshLinks?: () => void } }
@@ -78,7 +196,7 @@ export function PnLSalesTable() {
 
   // Refresh Wowhead every time sales list renders
   useEffect(() => {
-    if (sales.length > 0) setTimeout(refreshWowhead, 200)
+    if (sales.length > 0) setTimeout(refreshWowhead, 250)
   }, [sales])
 
   const filteredSales = sales.filter((s) =>
@@ -180,7 +298,6 @@ export function PnLSalesTable() {
                   const isProfit = sale.netProfitCopper >= 0
                   const bId = sale.blizzardId ||
                     (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
-                  const wowUrl = bId ? `https://www.wowhead.com/item=${bId}` : null
 
                   return (
                     <tr
@@ -189,26 +306,13 @@ export function PnLSalesTable() {
                       onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.08)' }}
                       onMouseOut={(e) => { e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)' }}
                     >
-                      {/* Item name — Wowhead handles icon + color + tooltip via tooltips.js */}
+                      {/* Item cell with icon, quality color & Wowhead tooltip */}
                       <td style={{ ...tdStyle('left'), overflow: 'visible' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                          {wowUrl && bId ? (
-                            <a
-                              href={wowUrl}
-                              data-wowhead={`item=${bId}`}
-                              onClick={(e) => {
-                                e.preventDefault()
-                                if (window.goblin?.openExternal) void window.goblin.openExternal(wowUrl)
-                              }}
-                              style={{ fontWeight: 600, textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            >
-                              {sale.itemName}
-                            </a>
-                          ) : (
-                            <span style={{ fontWeight: 600, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sale.itemName}</span>
-                          )}
-                          {sale.quantity > 1 && <span style={{ color: '#fbbf24', fontSize: '0.84em', fontWeight: 700, flexShrink: 0 }}>x{sale.quantity}</span>}
-                        </div>
+                        <WowItemLinkCell
+                          blizzardId={bId}
+                          itemName={sale.itemName}
+                          quantity={sale.quantity}
+                        />
                       </td>
 
                       <td style={{ ...tdStyle('center'), color: '#94a3b8', fontSize: '0.85em' }}>{sale.soldAt || 'Unknown'}</td>
