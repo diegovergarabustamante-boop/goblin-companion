@@ -171,6 +171,18 @@ function WowItemLinkCell({
   )
 }
 
+// ─── Deterministic Distinct Color Generator ─────────────────────────────────
+function stringToColor(str?: string): string {
+  if (!str) return '#94a3b8'
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  // Golden ratio angle multiplier (137.508°) guarantees max visual color distribution on the HSL wheel
+  const hue = Math.abs(hash * 137.508) % 360
+  return `hsl(${Math.round(hue)}, 78%, 75%)`
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function refreshWowhead() {
   const wh = window as unknown as { $WowheadPower?: { refreshLinks?: () => void } }
@@ -347,13 +359,27 @@ export function PnLSalesTable() {
                       </td>
 
                       {/* Bought By (Buyer) */}
-                      <td style={{ ...tdStyle('center'), color: '#e2e8f0', fontWeight: 500 }} title={sale.buyer ? `Bought by: ${sale.buyer}` : undefined}>
-                        {sale.buyer || <span style={{ color: '#64748b', fontStyle: 'italic' }}>—</span>}
+                      <td
+                        style={{
+                          ...tdStyle('center'),
+                          color: sale.buyer ? stringToColor(sale.buyer) : '#64748b',
+                          fontWeight: 600
+                        }}
+                        title={sale.buyer ? `Bought by: ${sale.buyer}` : undefined}
+                      >
+                        {sale.buyer || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
                       </td>
 
                       {/* Realm */}
-                      <td style={{ ...tdStyle('center'), color: '#cbd5e1', fontWeight: 500 }} title={sale.realm ? `Realm: ${sale.realm}` : undefined}>
-                        {sale.realm || <span style={{ color: '#64748b', fontStyle: 'italic' }}>—</span>}
+                      <td
+                        style={{
+                          ...tdStyle('center'),
+                          color: sale.realm ? stringToColor(sale.realm) : '#64748b',
+                          fontWeight: 600
+                        }}
+                        title={sale.realm ? `Realm: ${sale.realm}` : undefined}
+                      >
+                        {sale.realm || <span style={{ color: '#64748b', fontStyle: 'italic', fontWeight: 400 }}>—</span>}
                       </td>
 
                       {/* Buy Date (formatted in user's local PC timezone) */}
