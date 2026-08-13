@@ -13,28 +13,65 @@ export function CoinBadge({ copper }: { copper: number }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '4px',
+        gap: '5px',
         fontFamily: 'monospace, sans-serif',
         fontWeight: 700,
-        fontSize: '0.9e'
+        fontSize: '0.9em',
+        whiteSpace: 'nowrap'
       }}
     >
       {isNegative ? '-' : ''}
       {g > 0 && (
-        <span style={{ color: '#fbbf24', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+        <span style={{ color: '#fbbf24', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
           {g.toLocaleString()}
-          <span style={{ color: '#facc15', fontSize: '0.8em', fontWeight: 600 }}>g</span>
+          <span
+            title="Gold"
+            style={{
+              width: '13px',
+              height: '13px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)',
+              border: '1px solid #facc15',
+              boxShadow: '0 0 3px rgba(250, 204, 21, 0.4)',
+              display: 'inline-block',
+              flexShrink: 0
+            }}
+          />
         </span>
       )}
       {(s > 0 || g > 0) && (
-        <span style={{ color: '#cbd5e1', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+        <span style={{ color: '#cbd5e1', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
           {s}
-          <span style={{ color: '#94a3b8', fontSize: '0.8em', fontWeight: 600 }}>s</span>
+          <span
+            title="Silver"
+            style={{
+              width: '13px',
+              height: '13px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #64748b 100%)',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 0 3px rgba(226, 232, 240, 0.4)',
+              display: 'inline-block',
+              flexShrink: 0
+            }}
+          />
         </span>
       )}
-      <span style={{ color: '#f97316', display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+      <span style={{ color: '#f97316', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
         {c}
-        <span style={{ color: '#ea580c', fontSize: '0.8em', fontWeight: 600 }}>c</span>
+        <span
+          title="Copper"
+          style={{
+            width: '13px',
+            height: '13px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #ffedd5 0%, #f97316 50%, #c2410c 100%)',
+            border: '1px solid #fb923c',
+            boxShadow: '0 0 3px rgba(249, 115, 22, 0.4)',
+            display: 'inline-block',
+            flexShrink: 0
+          }}
+        />
       </span>
     </span>
   )
