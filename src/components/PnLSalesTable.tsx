@@ -18,7 +18,7 @@ function formatLocalDateTime(ts?: number, fallbackStr?: string): string {
 }
 
 // ─── Coin Badge ──────────────────────────────────────────────────────────────
-export function CoinBadge({ copper }: { copper: number }) {
+export function CoinBadge({ copper, fontSize = '0.98em' }: { copper: number; fontSize?: string }) {
   const isNegative = copper < 0
   const absCopper = Math.abs(copper)
   const g = Math.floor(absCopper / 10000)
@@ -26,7 +26,7 @@ export function CoinBadge({ copper }: { copper: number }) {
   const c = absCopper % 100
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9em', whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'monospace', fontWeight: 700, fontSize, whiteSpace: 'nowrap' }}>
       {isNegative ? '-' : ''}
       {g > 0 && (
         <span style={{ color: '#fbbf24', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
@@ -180,15 +180,15 @@ export interface PnLColumnDef {
 }
 
 const DEFAULT_COLUMNS: PnLColumnDef[] = [
-  { id: 'item', label: 'Item Name', visible: true, widthPercent: 20 },
-  { id: 'buyer', label: 'Bought By', visible: true, widthPercent: 12 },
-  { id: 'realm', label: 'Realm', visible: true, widthPercent: 12 },
-  { id: 'buyDate', label: 'Buy Date', visible: true, widthPercent: 11 },
-  { id: 'sellDate', label: 'Sell Date', visible: true, widthPercent: 11 },
-  { id: 'posts', label: 'Posts', visible: true, widthPercent: 7 },
-  { id: 'buyPrice', label: 'Buy Price', visible: true, widthPercent: 9 },
-  { id: 'sellPrice', label: 'Sell Price', visible: true, widthPercent: 9 },
-  { id: 'netProfit', label: 'Net Profit', visible: true, widthPercent: 9 }
+  { id: 'item', label: 'Item Name', visible: true, widthPercent: 18 },
+  { id: 'buyer', label: 'Bought By', visible: true, widthPercent: 11 },
+  { id: 'realm', label: 'Realm', visible: true, widthPercent: 11 },
+  { id: 'buyDate', label: 'Buy Date', visible: true, widthPercent: 10 },
+  { id: 'sellDate', label: 'Sell Date', visible: true, widthPercent: 10 },
+  { id: 'posts', label: 'Posts', visible: true, widthPercent: 6 },
+  { id: 'buyPrice', label: 'Buy Price', visible: true, widthPercent: 11 },
+  { id: 'sellPrice', label: 'Sell Price', visible: true, widthPercent: 11 },
+  { id: 'netProfit', label: 'Net Profit', visible: true, widthPercent: 12 }
 ]
 
 const STORAGE_KEY = 'goblin_pnl_columns_config'
@@ -403,20 +403,30 @@ export function PnLSalesTable() {
         )
       case 'buyPrice':
         return (
-          <td key={colId} style={tdStyle('center', isLast)}>
-            <CoinBadge copper={sale.buyPriceCopper} />
+          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible', whiteSpace: 'nowrap' }}>
+            <CoinBadge copper={sale.buyPriceCopper} fontSize="1em" />
           </td>
         )
       case 'sellPrice':
         return (
-          <td key={colId} style={tdStyle('center', isLast)}>
-            <CoinBadge copper={sale.sellPriceCopper} />
+          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible', whiteSpace: 'nowrap' }}>
+            <CoinBadge copper={sale.sellPriceCopper} fontSize="1em" />
           </td>
         )
       case 'netProfit':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), fontWeight: 700, color: isProfit ? '#4ade80' : '#f87171', background: isProfit ? 'rgba(74,222,128,0.05)' : 'rgba(248,113,113,0.05)' }}>
-            <CoinBadge copper={sale.netProfitCopper} />
+          <td
+            key={colId}
+            style={{
+              ...tdStyle('center', isLast),
+              overflow: 'visible',
+              whiteSpace: 'nowrap',
+              fontWeight: 700,
+              color: isProfit ? '#4ade80' : '#f87171',
+              background: isProfit ? 'rgba(74,222,128,0.05)' : 'rgba(248,113,113,0.05)'
+            }}
+          >
+            <CoinBadge copper={sale.netProfitCopper} fontSize="1.04em" />
           </td>
         )
       default:
