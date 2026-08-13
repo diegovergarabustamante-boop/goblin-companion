@@ -24,7 +24,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
 
   async function handleLogin(): Promise<void> {
     if (!user.trim() || !pass.trim()) {
-      setLoginError('Ingresá usuario y contraseña de la web')
+      setLoginError('Please enter your web username and password')
       return
     }
     setTesting(true)
@@ -40,7 +40,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         }))
         setStep(1) // Move to next step
       } else {
-        setLoginError(result.error || 'Credenciales inválidas')
+        setLoginError(result.error || 'Invalid credentials')
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : String(err))
@@ -67,19 +67,19 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
           {step === 0 && (
             <>
               <img src="/images/goblin_assets/database.png" alt="" style={{ width: 22, height: 22 }} />
-              <span>Iniciar Sesión con tu Cuenta Web</span>
+              <span>Sign In to Web Account</span>
             </>
           )}
           {step === 1 && (
             <>
               <img src="/images/goblin_assets/TSM.png" alt="" style={{ width: 22, height: 22 }} />
-              <span>Carpeta de WoW</span>
+              <span>WoW SavedVariables Folder</span>
             </>
           )}
           {step === 2 && (
             <>
               <img src="/images/goblin_assets/icon_config.png" alt="" style={{ width: 22, height: 22 }} />
-              <span>Preferencias</span>
+              <span>Preferences</span>
             </>
           )}
         </h2>
@@ -87,10 +87,10 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         {step === 0 ? (
           <>
             <p className="page__note">
-              Ingresá con las mismas credenciales que usás en la web <strong>Auction House Profit</strong>.
+              Sign in with the same account credentials registered on <strong>Auction House Profit</strong>.
             </p>
             <label className="field">
-              <span>URL del Servidor</span>
+              <span>Server URL</span>
               <input
                 type="text"
                 value={draft.djangoUrl}
@@ -99,21 +99,21 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
               />
             </label>
             <label className="field">
-              <span>Usuario Web</span>
+              <span>Web Username</span>
               <input
                 type="text"
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
-                placeholder="Tu usuario"
+                placeholder="Your username"
               />
             </label>
             <label className="field">
-              <span>Contraseña</span>
+              <span>Password</span>
               <input
                 type="password"
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
-                placeholder="Tu contraseña web"
+                placeholder="Your password"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void handleLogin()
                 }}
@@ -130,14 +130,14 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
             {draft.companionToken ? (
               <div style={{ color: '#4ade80', fontSize: '0.85em', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <img src="/images/goblin_assets/success.png" alt="" style={{ width: 14, height: 14 }} />
-                <span>Conectado como {draft.username || 'Usuario Web'}</span>
+                <span>Connected as {draft.username || 'Web User'}</span>
               </div>
             ) : null}
 
             <div className="button-row" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn--primary" disabled={testing} onClick={() => void handleLogin()}>
                 <img src="/images/goblin_assets/login.png" alt="" style={{ width: 16, height: 16 }} />
-                <span>{testing ? 'Verificando…' : 'Iniciar Sesión'}</span>
+                <span>{testing ? 'Verifying…' : 'Sign In'}</span>
               </button>
             </div>
           </>
@@ -146,15 +146,15 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         {step === 1 ? (
           <>
             <p className="page__note">
-              Ruta a …/_retail_/WTF/Account/&lt;TU_CUENTA&gt;/SavedVariables (donde está TradeSkillMaster.lua).
+              Path to …/_retail_/WTF/Account/&lt;YOUR_ACCOUNT&gt;/SavedVariables (where TradeSkillMaster.lua is located).
             </p>
             <label className="field">
-              <span>SavedVariables</span>
+              <span>SavedVariables Folder</span>
               <input
                 type="text"
                 value={draft.wowSavedVariablesPath}
                 onChange={(e) => patch({ wowSavedVariablesPath: e.target.value })}
-                placeholder="…\SavedVariables  (carpeta, no el archivo .lua)"
+                placeholder="…\SavedVariables  (folder, not the .lua file)"
               />
             </label>
           </>
@@ -162,14 +162,14 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
 
         {step === 2 ? (
           <>
-            <p className="page__note">Podés cambiar estos valores en Settings más tarde.</p>
+            <p className="page__note">You can change these values in Settings at any time.</p>
             <label className="checkbox-field">
               <input
                 type="checkbox"
                 checked={draft.autoSyncEnabled}
                 onChange={(e) => patch({ autoSyncEnabled: e.target.checked })}
               />
-              <span style={{ color: '#f3f4f6' }}>Auto-sync al detectar cambios en SavedVariables</span>
+              <span style={{ color: '#f3f4f6' }}>Auto-sync when SavedVariables changes are detected</span>
             </label>
             <label className="checkbox-field">
               <input
@@ -177,7 +177,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
                 checked={draft.notificationsEnabled}
                 onChange={(e) => patch({ notificationsEnabled: e.target.checked })}
               />
-              <span style={{ color: '#f3f4f6' }}>Notificaciones de escritorio</span>
+              <span style={{ color: '#f3f4f6' }}>Desktop notifications</span>
             </label>
           </>
         ) : null}
@@ -185,7 +185,7 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
         <div className="wizard-actions button-row">
           {step > 0 ? (
             <button type="button" className="btn" onClick={() => setStep((s) => s - 1)}>
-              Anterior
+              Back
             </button>
           ) : null}
 
@@ -196,12 +196,12 @@ function FirstRunWizard({ initial, onCompleted }: FirstRunWizardProps): JSX.Elem
               disabled={step === 0 && !draft.companionToken}
               onClick={() => setStep((s) => s + 1)}
             >
-              Siguiente
+              Next
             </button>
           ) : (
             <button type="button" className="btn btn--primary" disabled={saving} onClick={() => void finish()}>
               <img src="/images/goblin_assets/save.png" alt="" style={{ width: 16, height: 16 }} />
-              <span>{saving ? 'Guardando…' : 'Comenzar a usar'}</span>
+              <span>{saving ? 'Saving…' : 'Get Started'}</span>
             </button>
           )}
         </div>

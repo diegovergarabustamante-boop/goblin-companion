@@ -20,10 +20,10 @@ function TitleBar({ status }: TitleBarProps): JSX.Element {
         <span className="title-bar__title">Goblin Companion</span>
       </div>
       <div className="title-bar__controls">
-        <button type="button" aria-label="Minimizar" onClick={() => window.goblin.minimizeWindow()}>
+        <button type="button" aria-label="Minimize" onClick={() => window.goblin.minimizeWindow()}>
           &minus;
         </button>
-        <button type="button" className="close-btn" aria-label="Cerrar a la bandeja" onClick={() => window.goblin.closeWindow()}>
+        <button type="button" className="close-btn" aria-label="Close to tray" onClick={() => window.goblin.closeWindow()}>
           &times;
         </button>
       </div>
