@@ -243,17 +243,77 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
         </label>
       </section>
 
-      {/* SECCIÓN 3: NOTIFICACIONES Y ARRANQUE */}
-      <section className="glass-panel">
-        <h2>Notificaciones y arranque</h2>
-        <label className="checkbox-field">
-          <input
-            type="checkbox"
-            checked={settings.notificationsEnabled}
-            onChange={(event) => patch({ notificationsEnabled: event.target.checked })}
-          />
-          <span>Notificaciones nativas (sync / write)</span>
-        </label>
+      {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
+      <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <h2>🔔 Notificaciones, Logs y Sistema</h2>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={settings.notificationsEnabled}
+              onChange={(event) => patch({ notificationsEnabled: event.target.checked })}
+            />
+            <span style={{ fontWeight: 700 }}>Activar notificaciones nativas de Windows</span>
+          </label>
+
+          {/* Sub-toggles granulares */}
+          <div
+            style={{
+              marginLeft: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              opacity: settings.notificationsEnabled ? 1 : 0.45,
+              pointerEvents: settings.notificationsEnabled ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease'
+            }}
+          >
+            <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
+              <input
+                type="checkbox"
+                checked={settings.notifyOnSync ?? true}
+                disabled={!settings.notificationsEnabled}
+                onChange={(e) => patch({ notifyOnSync: e.target.checked })}
+              />
+              <span>🔄 Sincronizaciones de inventario y accounting</span>
+            </label>
+
+            <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
+              <input
+                type="checkbox"
+                checked={settings.notifyOnWrite ?? true}
+                disabled={!settings.notificationsEnabled}
+                onChange={(e) => patch({ notifyOnWrite: e.target.checked })}
+              />
+              <span>✍️ Escrituras TSM recibidas desde la web</span>
+            </label>
+
+            <label className="checkbox-field" style={{ fontSize: '0.88em' }}>
+              <input
+                type="checkbox"
+                checked={settings.notifyOnError ?? true}
+                disabled={!settings.notificationsEnabled}
+                onChange={(e) => patch({ notifyOnError: e.target.checked })}
+              />
+              <span>⚠️ Alertas de errores y fallas</span>
+            </label>
+          </div>
+        </div>
+
+        <hr style={{ borderColor: 'rgba(251, 191, 36, 0.15)', margin: '4px 0' }} />
+
+        <div>
+          <span style={{ fontSize: '0.88em', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+            📜 Retención de Activity Log
+          </span>
+          <p style={{ margin: 0, fontSize: '0.82em', color: '#94a3b8' }}>
+            El sistema conserva un <strong>máximo de 300 eventos</strong> en memoria y en disco. A medida que ingresan nuevos registros, los más antiguos se van descartando automáticamente.
+          </p>
+        </div>
+
+        <hr style={{ borderColor: 'rgba(251, 191, 36, 0.15)', margin: '4px 0' }} />
+
         <label className="checkbox-field">
           <input
             type="checkbox"

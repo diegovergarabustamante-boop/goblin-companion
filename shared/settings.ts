@@ -14,6 +14,9 @@ export interface CompanionSettings {
   localServerPort: number
   firstRunCompleted: boolean
   notificationsEnabled: boolean
+  notifyOnSync: boolean
+  notifyOnWrite: boolean
+  notifyOnError: boolean
   startWithWindows: boolean
 }
 
@@ -27,6 +30,9 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   localServerPort: 8765,
   firstRunCompleted: false,
   notificationsEnabled: true,
+  notifyOnSync: true,
+  notifyOnWrite: true,
+  notifyOnError: true,
   startWithWindows: false
 }
 

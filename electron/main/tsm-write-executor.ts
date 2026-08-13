@@ -60,7 +60,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
       await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
       updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
       appendActivity('error', `❌ Write #${pending.writeId} fallido`, 'Carpeta SavedVariables no configurada')
-      notify('Goblin Companion', '❌ Write TSM fallido: configurá la ruta de SavedVariables en Settings.')
+      notify('Goblin Companion', '❌ Write TSM fallido: configurá la ruta de SavedVariables en Settings.', 'error')
       return
     }
 
@@ -69,7 +69,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
       await completePendingWrite(settings, pending.writeId, false, undefined, errMsg)
       updateLastTsmWrite({ at: new Date().toISOString(), writeId: pending.writeId, status: 'failed', detail: errMsg, error: errMsg })
       appendActivity('error', `❌ Write #${pending.writeId} fallido`, errMsg)
-      notify('Goblin Companion', `❌ Write TSM fallido: ${errMsg}`)
+      notify('Goblin Companion', `❌ Write TSM fallido: ${errMsg}`, 'error')
       return
     }
 
@@ -88,7 +88,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
         stats: s
       })
       appendActivity('ok', `✅ Write TSM #${pending.writeId} finalizado con éxito`, detailStr)
-      notify('Goblin Companion', `✅ Grupos TSM actualizados (#${pending.writeId}): ${detailStr}`)
+      notify('Goblin Companion', `✅ Grupos TSM actualizados (#${pending.writeId}): ${detailStr}`, 'write')
     } else {
       const errMsg = result.error ?? 'Error desconocido'
       updateLastTsmWrite({
@@ -99,7 +99,7 @@ export async function checkAndExecutePendingWrite(): Promise<void> {
         error: errMsg
       })
       appendActivity('error', `❌ Write TSM #${pending.writeId} fallido`, errMsg)
-      notify('Goblin Companion', `❌ Write TSM fallido (#${pending.writeId}): ${errMsg}`)
+      notify('Goblin Companion', `❌ Write TSM fallido (#${pending.writeId}): ${errMsg}`, 'error')
     }
   } finally {
     executing = false

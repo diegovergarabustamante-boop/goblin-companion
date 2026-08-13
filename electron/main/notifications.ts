@@ -2,12 +2,20 @@ import { Notification } from 'electron'
 
 import { getSettings } from './settings'
 
+export type NotificationKind = 'sync' | 'write' | 'error' | 'general'
+
 /**
- * Notificaciones nativas de Windows (Etapa 7).
- * Respetan Settings.notificationsEnabled. No spamean en cooldown/encolados.
+ * Notificaciones nativas de Windows.
+ * Respetan Settings.notificationsEnabled y sub-toggles (notifyOnSync, notifyOnWrite, notifyOnError).
  */
-export function notify(title: string, body: string): void {
-  if (!getSettings().notificationsEnabled) return
+export function notify(title: string, body: string, kind: NotificationKind = 'general'): void {
+  const settings = getSettings()
+  if (!settings.notificationsEnabled) return
+
+  if (kind === 'sync' && settings.notifyOnSync === false) return
+  if (kind === 'write' && settings.notifyOnWrite === false) return
+  if (kind === 'error' && settings.notifyOnError === false) return
+
   if (!Notification.isSupported()) return
 
   try {
@@ -18,6 +26,6 @@ export function notify(title: string, body: string): void {
     })
     notification.show()
   } catch {
-    // Algunos entornos (CI / sin toast) fallan silenciosamente.
+    // Algunos entornos fallan silenciosamente.
   }
 }

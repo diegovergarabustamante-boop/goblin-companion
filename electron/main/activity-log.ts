@@ -1,12 +1,13 @@
 import { app, shell } from 'electron'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import type { ActivityEvent, ActivityLevel } from '../../shared/settings'
 
 export type { ActivityEvent, ActivityLevel }
 
-const MAX_IN_MEMORY = 200
+/** Límite máximo de 300 registros (FIFO: los más antiguos se van descartando) */
+const MAX_LOGS = 300
 const events: ActivityEvent[] = []
 let listeners: Array<(event: ActivityEvent) => void> = []
 
@@ -29,10 +30,14 @@ export function appendActivity(
     detail
   }
   events.unshift(event)
-  if (events.length > MAX_IN_MEMORY) events.length = MAX_IN_MEMORY
+  if (events.length > MAX_LOGS) {
+    events.length = MAX_LOGS
+  }
 
   try {
-    appendFileSync(logPath(), `${JSON.stringify(event)}\n`, 'utf8')
+    // Persiste los últimos 300 eventos en disco en orden cronológico (antiguos primero)
+    const fileLines = events.slice().reverse().map((e) => JSON.stringify(e)).join('\n') + '\n'
+    writeFileSync(logPath(), fileLines, 'utf8')
   } catch {
     // Disco lleno / sin permisos: el log en memoria sigue vivo.
   }
@@ -41,8 +46,8 @@ export function appendActivity(
   return event
 }
 
-export function getActivityLog(limit = 100): ActivityEvent[] {
-  return events.slice(0, limit)
+export function getActivityLog(limit = MAX_LOGS): ActivityEvent[] {
+  return events.slice(0, Math.min(limit, MAX_LOGS))
 }
 
 export function onActivity(listener: (event: ActivityEvent) => void): () => void {
@@ -52,13 +57,13 @@ export function onActivity(listener: (event: ActivityEvent) => void): () => void
   }
 }
 
-/** Carga los últimos eventos del JSONL al arrancar (best-effort). */
+/** Carga los últimos 300 eventos del JSONL al arrancar (best-effort). */
 export function hydrateActivityLogFromDisk(): void {
   try {
     const path = logPath()
     if (!existsSync(path)) return
     const lines = readFileSync(path, 'utf8').trim().split('\n').filter(Boolean)
-    const recent = lines.slice(-MAX_IN_MEMORY)
+    const recent = lines.slice(-MAX_LOGS)
     for (const line of recent) {
       try {
         events.unshift(JSON.parse(line) as ActivityEvent)
@@ -66,7 +71,9 @@ export function hydrateActivityLogFromDisk(): void {
         // línea corrupta: ignorar
       }
     }
-    events.splice(MAX_IN_MEMORY)
+    if (events.length > MAX_LOGS) {
+      events.length = MAX_LOGS
+    }
   } catch {
     // ignore
   }
