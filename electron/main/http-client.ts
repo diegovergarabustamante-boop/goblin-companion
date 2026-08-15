@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { CompanionSettings, DjangoPingResult } from '../../shared/settings'
 
 /**
@@ -150,11 +151,18 @@ async function postCompanionSync(
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS)
 
+  let content: string | undefined
+  try {
+    content = readFileSync(filePath, 'utf-8')
+  } catch {
+    // Si falla la lectura local, enviamos solo filePath como fallback
+  }
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: companionHeaders(settings.companionToken),
-      body: JSON.stringify({ file_path: filePath }),
+      body: JSON.stringify({ file_path: filePath, content }),
       signal: controller.signal
     })
 
