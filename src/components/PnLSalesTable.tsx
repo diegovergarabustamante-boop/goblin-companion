@@ -540,7 +540,7 @@ export function PnLSalesTable() {
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          justify: 'space-between',
+                          justifyContent: 'space-between',
                           padding: '6px 8px',
                           borderRadius: 6,
                           background: col.visible ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.02)',
