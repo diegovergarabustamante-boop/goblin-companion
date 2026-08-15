@@ -33,8 +33,10 @@ import { getSyncSnapshot, markDjangoReachable, onSyncStatusChange, syncFile } fr
 import { createTray, setTrayStatus } from './tray'
 import { restartWatcher, stopWatcher } from './watcher'
 import { getWindowBounds, saveWindowBounds } from './window-state'
+import { updateManager } from './updater'
 
 loadDotEnv()
+
 
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.goblin.companion')
@@ -284,6 +286,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.ConfirmTsmWrite, (_event, assignments) => runTsmWriteConfirm(assignments))
   ipcMain.handle(IpcChannel.GetRecentSales, (_event, limit?: number) => fetchRecentSales(getSettings(), limit))
   ipcMain.handle(IpcChannel.GetItemTooltip, (_event, blizzardId: number) => fetchItemTooltip(blizzardId))
+  ipcMain.handle(IpcChannel.GetUpdateStatus, () => updateManager.getStatus())
+  ipcMain.handle(IpcChannel.CheckUpdate, () => updateManager.checkForUpdates())
+  ipcMain.handle(IpcChannel.OpenReleaseUrl, (_event, url?: string) => updateManager.openReleaseUrl(url))
 }
 
 const gotLock = app.requestSingleInstanceLock()
@@ -315,15 +320,18 @@ if (!gotLock) {
     startLocalServer()
     startConnectionMonitor()
     applyAutostart(getSettings().startWithWindows)
+    updateManager.init()
     broadcastStatus()
     appendActivity('info', 'Goblin Companion listo')
   })
 
   app.on('before-quit', () => {
+    updateManager.stop()
     stopWatcher()
     stopConnectionMonitor()
     stopLocalServer()
   })
+
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

@@ -212,12 +212,118 @@ body {
 /* ====================== RPG TAB BAR NAVIGATION ====================== */
 .tab-bar {
   display: flex;
-  gap: 6px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 16px 0;
   background: linear-gradient(180deg, rgba(15, 10, 5, 0.9) 0%, rgba(10, 7, 3, 0.7) 100%);
   border-bottom: 2px solid var(--border-color);
   -webkit-app-region: no-drag;
 }
+
+.tab-bar__tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  margin-left: auto;
+}
+
+.app-version-pill {
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.check-update-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: #cbd5e1;
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.check-update-btn:hover:not(:disabled) {
+  color: var(--color-gold);
+  border-color: rgba(251, 191, 36, 0.6);
+  background: rgba(30, 20, 4, 0.9);
+}
+
+.check-update-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+
+.update-available-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.25) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #fbbf24;
+  font-family: var(--font-header);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.2);
+}
+
+.update-available-badge:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.4) 100%);
+  border-color: #fbbf24;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.4);
+}
+
+.update-available-badge .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulse-dot-anim 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-dot-anim {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+}
+
 
 .tab-button {
   display: inline-flex;
@@ -278,6 +384,18 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.badge-version {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--color-gold);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  font-weight: 700;
+}
+
+
 
 /* ====================== TAB CONTENT CONTAINER ====================== */
 .tab-content {

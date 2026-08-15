@@ -32,6 +32,8 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
     reloadSettings()
   }, [])
 
+
+
   function patch(update: Partial<CompanionSettings>): void {
     setSettings((current) => (current ? { ...current, ...update } : current))
     setTestResult(null)
@@ -352,6 +354,7 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
         <span>{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save Changes'}</span>
       </button>
     </div>
+
   )
 }
 

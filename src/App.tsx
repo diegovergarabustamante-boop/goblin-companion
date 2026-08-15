@@ -1,6 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 
-import type { AppTab } from '../shared/ipc'
+import type { AppTab, UpdateStatusInfo } from '../shared/ipc'
 import type { CompanionSettings, CompanionStatusSnapshot } from '../shared/settings'
 import ActivityLog from './pages/ActivityLog'
 import Backups from './pages/Backups'
@@ -23,16 +23,31 @@ function App(): JSX.Element {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard')
   const [status, setStatus] = useState<CompanionStatusSnapshot | null>(null)
   const [settings, setSettings] = useState<CompanionSettings | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatusInfo | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [loaded, setLoaded] = useState(false)
+
+  const handleCheckUpdate = async (): Promise<void> => {
+    setCheckingUpdate(true)
+    try {
+      const res = await window.goblin.checkForUpdates()
+      setUpdateStatus(res)
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([window.goblin.getStatus(), window.goblin.getSettings()]).then(([snapshot, cfg]) => {
-      if (cancelled) return
-      setStatus(snapshot)
-      setSettings(cfg)
-      setLoaded(true)
-    })
+    void Promise.all([window.goblin.getStatus(), window.goblin.getSettings(), window.goblin.getUpdateStatus()]).then(
+      ([snapshot, cfg, updateInfo]) => {
+        if (cancelled) return
+        setStatus(snapshot)
+        setSettings(cfg)
+        setUpdateStatus(updateInfo)
+        setLoaded(true)
+      }
+    )
     return () => {
       cancelled = true
     }
@@ -40,6 +55,7 @@ function App(): JSX.Element {
 
   useEffect(() => window.goblin.onNavigate((tab) => setActiveTab(tab)), [])
   useEffect(() => window.goblin.onStatusChange((snapshot) => setStatus(snapshot)), [])
+  useEffect(() => window.goblin.onUpdateStatusChange((st) => setUpdateStatus(st)), [])
 
   // Loading state
   if (!loaded || !settings) {
@@ -87,19 +103,54 @@ function App(): JSX.Element {
     <div className="app-shell">
       <TitleBar status={status} />
       <nav className="tab-bar" aria-label="Sections">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={`tab-button${activeTab === tab.id ? ' is-active' : ''}`}
-            disabled={tab.disabled}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <img src={tab.icon} alt="" className="tab-button__icon" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
+        <div className="tab-bar__tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`tab-button${activeTab === tab.id ? ' is-active' : ''}`}
+              disabled={tab.disabled}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <img src={tab.icon} alt="" className="tab-button__icon" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="tab-bar__right">
+          {updateStatus?.hasUpdate ? (
+            <button
+              type="button"
+              className="update-available-badge"
+              title={`New version v${updateStatus.latestVersion} available! Click to download.`}
+              onClick={() => void window.goblin.openReleaseUrl(updateStatus.downloadUrl || updateStatus.releaseUrl || undefined)}
+            >
+              <span className="pulse-dot" />
+              <span>Update Available ({updateStatus.latestVersion})</span>
+            </button>
+          ) : (
+            <>
+              <span className="app-version-pill" title={`Goblin Companion v${updateStatus?.currentVersion ?? '0.1.0'}`}>
+                v{updateStatus?.currentVersion ?? '0.1.0'}
+              </span>
+              <button
+                type="button"
+                className="check-update-btn"
+                disabled={checkingUpdate || updateStatus?.checking}
+                onClick={() => void handleCheckUpdate()}
+                title="Check for software updates"
+              >
+                <img src="./images/goblin_assets/search.png" alt="" style={{ width: 12, height: 12 }} />
+                <span>{checkingUpdate || updateStatus?.checking ? 'Checking…' : 'Check for updates'}</span>
+              </button>
+            </>
+          )}
+        </div>
       </nav>
+
+
+
       <main className="tab-content">
         {activeTab === 'dashboard' && <Dashboard status={status} />}
         {activeTab === 'activity-log' && <ActivityLog />}

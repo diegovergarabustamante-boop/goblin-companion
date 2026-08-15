@@ -25,7 +25,25 @@ export const IpcChannel = {
   LogoutCompanion: 'auth:logout',
   WindowMinimize: 'window:minimize',
   WindowClose: 'window:close',
-  OpenExternal: 'shell:open-external'
+  OpenExternal: 'shell:open-external',
+  GetUpdateStatus: 'updater:get-status',
+  CheckUpdate: 'updater:check',
+  UpdateStatusChanged: 'updater:status-changed',
+  OpenReleaseUrl: 'updater:open-release-url'
 } as const
 
 export type AppTab = 'dashboard' | 'activity-log' | 'backups' | 'settings' | 'pnl'
+
+export interface UpdateStatusInfo {
+  checking: boolean
+  hasUpdate: boolean
+  currentVersion: string
+  latestVersion: string
+  releaseUrl: string | null
+  downloadUrl: string | null
+  releaseNotes: string | null
+  publishedAt: string | null
+  error: string | null
+  lastCheckedAt: string | null
+}
+

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import { IpcChannel, type AppTab } from '../../shared/ipc'
+import { IpcChannel, type AppTab, type UpdateStatusInfo } from '../../shared/ipc'
 import type {
   ActivityEvent,
   CompanionSettings,
@@ -94,6 +94,12 @@ const goblinApi = {
 
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenExternal, url),
 
+  getUpdateStatus: (): Promise<UpdateStatusInfo> => ipcRenderer.invoke(IpcChannel.GetUpdateStatus),
+
+  checkForUpdates: (): Promise<UpdateStatusInfo> => ipcRenderer.invoke(IpcChannel.CheckUpdate),
+
+  openReleaseUrl: (url?: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenReleaseUrl, url),
+
   minimizeWindow: (): void => ipcRenderer.send(IpcChannel.WindowMinimize),
   closeWindow: (): void => ipcRenderer.send(IpcChannel.WindowClose),
 
@@ -113,8 +119,15 @@ const goblinApi = {
     const listener = (_event: unknown, activity: ActivityEventDto): void => callback(activity)
     ipcRenderer.on(IpcChannel.ActivityAppended, listener)
     return () => ipcRenderer.removeListener(IpcChannel.ActivityAppended, listener)
+  },
+
+  onUpdateStatusChange: (callback: (status: UpdateStatusInfo) => void): (() => void) => {
+    const listener = (_event: unknown, updateStatus: UpdateStatusInfo): void => callback(updateStatus)
+    ipcRenderer.on(IpcChannel.UpdateStatusChanged, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.UpdateStatusChanged, listener)
   }
 }
+
 
 export type GoblinApi = typeof goblinApi
 
