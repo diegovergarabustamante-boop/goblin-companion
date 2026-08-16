@@ -235,6 +235,7 @@ export function PnLSalesTable() {
   const [totalRev, setTotalRev] = useState(0)
   const [totalCost, setTotalCost] = useState(0)
   const [totalProfit, setTotalProfit] = useState(0)
+  const [isOffline, setIsOffline] = useState(false)
 
   // Column customization state
   const [columns, setColumns] = useState<PnLColumnDef[]>(loadSavedColumns)
@@ -282,6 +283,7 @@ export function PnLSalesTable() {
           setTotalRev(res.totalRevenueCopper ?? 0)
           setTotalCost(res.totalCostCopper ?? 0)
           setTotalProfit(res.totalProfitCopper ?? 0)
+          setIsOffline(Boolean(res.isOffline))
           // Let Wowhead process all newly rendered links
           setTimeout(refreshWowhead, 300)
         } else {
@@ -436,6 +438,27 @@ export function PnLSalesTable() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* Connection Mode Indicator */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 16px',
+        borderRadius: 8,
+        background: isOffline ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+        border: isOffline ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
+        fontSize: '0.85em',
+        color: isOffline ? '#fbbf24' : '#34d399'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+          <span>{isOffline ? '⚡' : '🌐'}</span>
+          <span>{isOffline ? 'Offline Fallback Mode (Loaded from local TradeSkillMaster.lua)' : 'Online Mode (Synced with Auction House Profit Web)'}</span>
+        </div>
+        <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>
+          {isOffline ? 'Server Unreachable · Using Local SavedVariables' : 'Connected to Server'}
+        </span>
+      </div>
 
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>

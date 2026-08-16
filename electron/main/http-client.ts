@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { CompanionSettings, DjangoPingResult } from '../../shared/settings'
+import { parseLocalAccountingSales } from './local-pnl-parser'
 
 /**
  * Cliente HTTP mínimo hacia Django (Etapa 2–3 del plan).
@@ -447,6 +448,7 @@ export interface RecentSalesResponseDto {
   totalRevenueCopper?: number
   totalCostCopper?: number
   totalProfitCopper?: number
+  isOffline?: boolean
   error?: string
 }
 
@@ -458,7 +460,7 @@ export async function fetchRecentSales(
   try {
     url = new URL(`/api/companion/recent-sales/?limit=${limit}`, settings.djangoUrl).toString()
   } catch {
-    return { ok: false, error: 'Invalid Django Server URL' }
+    return parseLocalAccountingSales(limit)
   }
 
   try {
@@ -493,6 +495,9 @@ export async function fetchRecentSales(
     } | null
 
     if (!response.ok || !body?.success) {
+      // Fallback to local Lua parsing if server responds with error/unreachable
+      const localResult = parseLocalAccountingSales(limit)
+      if (localResult.ok) return localResult
       return { ok: false, error: body?.error ?? `HTTP error ${response.status}` }
     }
 
@@ -520,10 +525,12 @@ export async function fetchRecentSales(
       total: body.total ?? salesList.length,
       totalRevenueCopper: body.total_revenue_copper ?? 0,
       totalCostCopper: body.total_cost_copper ?? 0,
-      totalProfitCopper: body.total_profit_copper ?? 0
+      totalProfitCopper: body.total_profit_copper ?? 0,
+      isOffline: false
     }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  } catch {
+    // Network or server unreachable -> Fallback to local SavedVariables parsing
+    return parseLocalAccountingSales(limit)
   }
 }
 
