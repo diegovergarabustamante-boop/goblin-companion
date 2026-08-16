@@ -7,6 +7,12 @@ interface RawBuyRecord {
   priceCopper: number
   quantity: number
   timestamp: number
+  realm?: string
+}
+
+interface PostRecord {
+  realm: string
+  time: number
 }
 
 /**
@@ -55,7 +61,7 @@ function cleanStr(str?: string): string {
  * Used as a fallback when Django backend is unreachable.
  * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source),
  * supports quote-safe realm keys (e.g. Kel'Thuzad, Quel'Thalas), escaped literal \n sequences,
- * base item key matching across bonus IDs, and calculates exact auction post counts per sale from csvExpired / csvCancelled.
+ * base item key matching across bonus IDs, and realm-scoped auction post counts per sale from csvExpired / csvCancelled.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -80,13 +86,17 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     const expiredMatches = Array.from(content.matchAll(expiredRegex))
     const cancelledMatches = Array.from(content.matchAll(cancelledRegex))
 
-    // Index Expired + Cancelled post timestamps for computing postsBeforeSale
-    const postTimestampsByItem: Record<string, number[]> = {}
+    // Index Expired + Cancelled post timestamps per item & realm for computing postsBeforeSale
+    const postRecordsByItem: Record<string, PostRecord[]> = {}
 
     const indexPostMatches = (matches: RegExpMatchArray[]): void => {
       for (const m of matches) {
+        const key = m[1] || m[2] || ''
         const str = m[3] || m[4] || m[5]
         if (!str) continue
+
+        const realmMatch = key.match(/r@([^@]+)@/i)
+        const realm = realmMatch ? realmMatch[1].toLowerCase() : ''
 
         const lines = str.split(/\\n|\r?\n/)
         if (lines.length <= 1) continue
@@ -109,13 +119,14 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
           if (!itemString || time <= 0) continue
 
           const baseKey = extractBaseKey(itemString)
+          const rec: PostRecord = { realm, time }
 
-          if (!postTimestampsByItem[itemString]) postTimestampsByItem[itemString] = []
-          postTimestampsByItem[itemString].push(time)
+          if (!postRecordsByItem[itemString]) postRecordsByItem[itemString] = []
+          postRecordsByItem[itemString].push(rec)
 
           if (baseKey && baseKey !== itemString) {
-            if (!postTimestampsByItem[baseKey]) postTimestampsByItem[baseKey] = []
-            postTimestampsByItem[baseKey].push(time)
+            if (!postRecordsByItem[baseKey]) postRecordsByItem[baseKey] = []
+            postRecordsByItem[baseKey].push(rec)
           }
         }
       }
@@ -124,16 +135,20 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     indexPostMatches(expiredMatches)
     indexPostMatches(cancelledMatches)
 
-    // Sort post timestamps ascending
-    for (const key in postTimestampsByItem) {
-      postTimestampsByItem[key].sort((a, b) => a - b)
+    // Sort post records ascending by timestamp
+    for (const key in postRecordsByItem) {
+      postRecordsByItem[key].sort((a, b) => a.time - b.time)
     }
 
     // Parse Buy Records for FIFO cost matching
     const buysByItem: Record<string, RawBuyRecord[]> = {}
     for (const m of buysMatches) {
+      const key = m[1] || m[2] || ''
       const str = m[3] || m[4] || m[5]
       if (!str) continue
+
+      const realmMatch = key.match(/r@([^@]+)@/i)
+      const realm = realmMatch ? realmMatch[1] : undefined
 
       const lines = str.split(/\\n|\r?\n/)
       if (lines.length <= 1) continue
@@ -162,7 +177,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         if (!itemString || priceCopper <= 0) continue
 
         const totalQty = rawQty * stackSize
-        const rec: RawBuyRecord = { itemString, priceCopper, quantity: totalQty, timestamp: time }
+        const rec: RawBuyRecord = { itemString, priceCopper, quantity: totalQty, timestamp: time, realm }
         const baseKey = extractBaseKey(itemString)
 
         if (!buysByItem[itemString]) buysByItem[itemString] = []
@@ -242,13 +257,14 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
 
         const netProfitCopper = (sellPriceCopper * totalQuantity) - (buyPriceCopper * totalQuantity)
 
-        // Calculate postsBeforeSale from expired and cancelled history
-        const allPosts = postTimestampsByItem[itemString] || postTimestampsByItem[baseKey] || []
+        // Calculate postsBeforeSale from expired and cancelled history on the same realm
+        const allPosts = postRecordsByItem[itemString] || postRecordsByItem[baseKey] || []
+        const saleRealmLower = realm ? realm.toLowerCase() : ''
         let postsBeforeSale = 1 // 1 for the sale posting itself
         const minTime = buyTimeTs || (sellTimeTs - (30 * 24 * 60 * 60)) // fallback to 30 days before sale
 
-        for (const ts of allPosts) {
-          if (ts >= minTime && ts <= sellTimeTs) {
+        for (const p of allPosts) {
+          if ((!saleRealmLower || !p.realm || p.realm === saleRealmLower) && p.time >= minTime && p.time <= sellTimeTs) {
             postsBeforeSale++
           }
         }
