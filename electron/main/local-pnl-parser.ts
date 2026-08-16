@@ -54,8 +54,8 @@ function cleanStr(str?: string): string {
  * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
  * Used as a fallback when Django backend is unreachable.
  * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source),
- * supports quote-safe realm keys (e.g. Kel'Thuzad, Quel'Thalas),
- * escaped literal \n sequences, and base item key matching across bonus IDs.
+ * supports quote-safe realm keys (e.g. Kel'Thuzad, Quel'Thalas), escaped literal \n sequences,
+ * base item key matching across bonus IDs, and calculates exact auction post counts per sale from csvExpired / csvCancelled.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -72,9 +72,62 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     // Quote-safe capture of accounting blocks, allowing single quotes in realm names (e.g. Kel'Thuzad)
     const salesRegex = /\[(?:"([^"]*csvSales[^"]*)"|'([^']*csvSales[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
     const buysRegex = /\[(?:"([^"]*csvBuys[^"]*)"|'([^']*csvBuys[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    const expiredRegex = /\[(?:"([^"]*csvExpired[^"]*)"|'([^']*csvExpired[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    const cancelledRegex = /\[(?:"([^"]*csvCancelled[^"]*)"|'([^']*csvCancelled[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
 
     const salesMatches = Array.from(content.matchAll(salesRegex))
     const buysMatches = Array.from(content.matchAll(buysRegex))
+    const expiredMatches = Array.from(content.matchAll(expiredRegex))
+    const cancelledMatches = Array.from(content.matchAll(cancelledRegex))
+
+    // Index Expired + Cancelled post timestamps for computing postsBeforeSale
+    const postTimestampsByItem: Record<string, number[]> = {}
+
+    const indexPostMatches = (matches: RegExpMatchArray[]): void => {
+      for (const m of matches) {
+        const str = m[3] || m[4] || m[5]
+        if (!str) continue
+
+        const lines = str.split(/\\n|\r?\n/)
+        if (lines.length <= 1) continue
+
+        const headerLine = cleanStr(lines[0])
+        const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
+
+        const itemIdx = headers.indexOf('itemstring')
+        const timeIdx = headers.indexOf('time')
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = cleanStr(lines[i])
+          if (!line) continue
+          const parts = line.split(',')
+          if (parts.length < 3) continue
+
+          const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
+          const time = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 4]), 10) || 0
+
+          if (!itemString || time <= 0) continue
+
+          const baseKey = extractBaseKey(itemString)
+
+          if (!postTimestampsByItem[itemString]) postTimestampsByItem[itemString] = []
+          postTimestampsByItem[itemString].push(time)
+
+          if (baseKey && baseKey !== itemString) {
+            if (!postTimestampsByItem[baseKey]) postTimestampsByItem[baseKey] = []
+            postTimestampsByItem[baseKey].push(time)
+          }
+        }
+      }
+    }
+
+    indexPostMatches(expiredMatches)
+    indexPostMatches(cancelledMatches)
+
+    // Sort post timestamps ascending
+    for (const key in postTimestampsByItem) {
+      postTimestampsByItem[key].sort((a, b) => a - b)
+    }
 
     // Parse Buy Records for FIFO cost matching
     const buysByItem: Record<string, RawBuyRecord[]> = {}
@@ -178,13 +231,26 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
 
         // Attempt FIFO buy matching by exact string or base key
         let buyPriceCopper = 0
+        let buyTimeTs: number | undefined
         const buysList = buysByItem[itemString] || buysByItem[baseKey]
         if (buysList && buysList.length > 0) {
           const matchedBuy = buysList[buysList.length - 1]
           buyPriceCopper = matchedBuy.priceCopper
+          buyTimeTs = matchedBuy.timestamp
         }
 
         const netProfitCopper = (sellPriceCopper * totalQuantity) - (buyPriceCopper * totalQuantity)
+
+        // Calculate postsBeforeSale from expired and cancelled history
+        const allPosts = postTimestampsByItem[itemString] || postTimestampsByItem[baseKey] || []
+        let postsBeforeSale = 1 // 1 for the sale posting itself
+        const minTime = buyTimeTs || (sellTimeTs - (60 * 24 * 60 * 60)) // fallback to 60 days before sale
+
+        for (const ts of allPosts) {
+          if (ts >= minTime && ts <= sellTimeTs) {
+            postsBeforeSale++
+          }
+        }
 
         rawSales.push({
           id: `local-${sellTimeTs}-${rawSales.length}`,
@@ -198,7 +264,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
           quantity: totalQuantity,
           buyPriceCopper,
           sellPriceCopper,
-          postsBeforeSale: 1,
+          postsBeforeSale,
           netProfitCopper,
           buyer,
           realm
