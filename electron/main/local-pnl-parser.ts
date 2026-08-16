@@ -4,15 +4,19 @@ import { resolveLuaPath } from './paths'
 
 interface RawBuyRecord {
   itemString: string
+  baseId: string
   priceCopper: number
   quantity: number
   timestamp: number
+  buyer?: string
   realm?: string
 }
 
 interface PostRecord {
+  baseId: string
+  player: string
   realm: string
-  time: number
+  timestamp: number
 }
 
 /**
@@ -31,11 +35,11 @@ function extractBlizzardId(itemString: string): number | undefined {
 /**
  * Extracts base item key (e.g. "i:1604" from "i:1604::1:13617:1:9:30").
  */
-function extractBaseKey(itemString: string): string {
-  if (!itemString) return ''
-  const m = itemString.match(/^(i:\d+)/i) || itemString.match(/^(p:\d+)/i) || itemString.match(/^(\d+)$/)
+function cleanBaseItemId(itemStr: string): string {
+  if (!itemStr) return ''
+  const m = String(itemStr).trim().match(/^(i:\d+)/i)
   if (m) return m[1].toLowerCase()
-  return itemString.split(':')[0].toLowerCase()
+  return String(itemStr).trim().split(':')[0].toLowerCase()
 }
 
 /**
@@ -58,10 +62,7 @@ function cleanStr(str?: string): string {
 
 /**
  * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
- * Used as a fallback when Django backend is unreachable.
- * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source),
- * supports quote-safe realm keys (e.g. Kel'Thuzad, Quel'Thalas), escaped literal \n sequences,
- * base item key matching across bonus IDs, and realm-scoped auction post counts per sale from csvExpired / csvCancelled.
+ * Directly ports the Django backend companion_recent_sales algorithm from Auction-house-Profit.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -75,226 +76,173 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   try {
     const content = readFileSync(luaPath, 'utf-8')
 
-    // Quote-safe capture of accounting blocks, allowing single quotes in realm names (e.g. Kel'Thuzad)
-    const salesRegex = /\[(?:"([^"]*csvSales[^"]*)"|'([^']*csvSales[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
-    const buysRegex = /\[(?:"([^"]*csvBuys[^"]*)"|'([^']*csvBuys[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
-    const expiredRegex = /\[(?:"([^"]*csvExpired[^"]*)"|'([^']*csvExpired[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
-    const cancelledRegex = /\[(?:"([^"]*csvCancelled[^"]*)"|'([^']*csvCancelled[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    const salesPattern = /\["r@([^"@]+)@internalData@csvSales"\]\s*=\s*"/g
+    const buysPattern = /\["r@([^"@]+)@internalData@csvBuys"\]\s*=\s*"/g
+    const expiredPattern = /\["r@([^"@]+)@internalData@csvExpired"\]\s*=\s*"/g
+    const cancelledPattern = /\["r@([^"@]+)@internalData@csvCancelled"\]\s*=\s*"/g
 
-    const salesMatches = Array.from(content.matchAll(salesRegex))
-    const buysMatches = Array.from(content.matchAll(buysRegex))
-    const expiredMatches = Array.from(content.matchAll(expiredRegex))
-    const cancelledMatches = Array.from(content.matchAll(cancelledRegex))
-
-    // Index Expired + Cancelled post timestamps per item & realm for computing postsBeforeSale
-    const postRecordsByItem: Record<string, PostRecord[]> = {}
-
-    const indexPostMatches = (matches: RegExpMatchArray[]): void => {
-      for (const m of matches) {
-        const key = m[1] || m[2] || ''
-        const str = m[3] || m[4] || m[5]
-        if (!str) continue
-
-        const realmMatch = key.match(/r@([^@]+)@/i)
-        const realm = realmMatch ? realmMatch[1].toLowerCase() : ''
-
-        const lines = str.split(/\\n|\r?\n/)
-        if (lines.length <= 1) continue
-
-        const headerLine = cleanStr(lines[0])
-        const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
-
-        const itemIdx = headers.indexOf('itemstring')
-        const timeIdx = headers.indexOf('time')
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = cleanStr(lines[i])
-          if (!line) continue
-          const parts = line.split(',')
-          if (parts.length < 3) continue
-
-          const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
-          const time = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 4]), 10) || 0
-
-          if (!itemString || time <= 0) continue
-
-          const baseKey = extractBaseKey(itemString)
-          const rec: PostRecord = { realm, time }
-
-          if (!postRecordsByItem[itemString]) postRecordsByItem[itemString] = []
-          postRecordsByItem[itemString].push(rec)
-
-          if (baseKey && baseKey !== itemString) {
-            if (!postRecordsByItem[baseKey]) postRecordsByItem[baseKey] = []
-            postRecordsByItem[baseKey].push(rec)
+    function parseSection(pattern: RegExp) {
+      const items: Array<{ realm: string; parts: string[] }> = []
+      let match: RegExpExecArray | null
+      while ((match = pattern.exec(content)) !== null) {
+        const realm = match[1]
+        const startPos = pattern.lastIndex
+        let endPos = startPos
+        while (endPos < content.length) {
+          if (content[endPos] === '"' && (endPos === 0 || content[endPos - 1] !== '\\')) {
+            break
+          }
+          endPos++
+        }
+        const csvData = content.substring(startPos, endPos)
+        if (csvData) {
+          const lines = csvData.replace(/\\n/g, '\n').split('\n')
+          if (lines.length > 1) {
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim()
+              if (!line) continue
+              const parts = line.split(',')
+              items.push({ realm, parts })
+            }
           }
         }
       }
+      return items
     }
 
-    indexPostMatches(expiredMatches)
-    indexPostMatches(cancelledMatches)
+    const rawSales = parseSection(salesPattern).map((x) => ({
+      itemId: cleanStr(x.parts[0]),
+      baseId: cleanBaseItemId(x.parts[0]),
+      stackSize: parseInt(cleanStr(x.parts[1]), 10) || 1,
+      quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
+      priceCopper: parseInt(cleanStr(x.parts[3]), 10) || 0,
+      buyer: cleanStr(x.parts[4]),
+      seller: cleanStr(x.parts[5]),
+      timeTsm: parseInt(cleanStr(x.parts[6]), 10) || 0,
+      source: cleanStr(x.parts[7]),
+      realm: x.realm
+    })).filter((s) => s.priceCopper > 0 && (s.source.toLowerCase() === 'auction' || !s.source))
 
-    // Sort post records ascending by timestamp
-    for (const key in postRecordsByItem) {
-      postRecordsByItem[key].sort((a, b) => a.time - b.time)
+    const rawPurchases = parseSection(buysPattern).map((x) => ({
+      itemId: cleanStr(x.parts[0]),
+      baseId: cleanBaseItemId(x.parts[0]),
+      stackSize: parseInt(cleanStr(x.parts[1]), 10) || 1,
+      quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
+      priceCopper: parseInt(cleanStr(x.parts[3]), 10) || 0,
+      seller: cleanStr(x.parts[4]),
+      buyer: cleanStr(x.parts[5]), // Your character who bought it
+      timeTsm: parseInt(cleanStr(x.parts[6]), 10) || 0,
+      source: cleanStr(x.parts[7]),
+      realm: x.realm
+    })).filter((p) => p.priceCopper > 0)
+
+    const rawExpired = parseSection(expiredPattern).map((x) => ({
+      baseId: cleanBaseItemId(x.parts[0]),
+      player: cleanStr(x.parts[3]),
+      timestamp: parseInt(cleanStr(x.parts[4]), 10) || 0,
+      realm: x.realm
+    })).filter((e) => e.timestamp > 0)
+
+    const rawCancelled = parseSection(cancelledPattern).map((x) => ({
+      baseId: cleanBaseItemId(x.parts[0]),
+      player: cleanStr(x.parts[3]),
+      timestamp: parseInt(cleanStr(x.parts[4]), 10) || 0,
+      realm: x.realm
+    })).filter((c) => c.timestamp > 0)
+
+    // Group purchases by baseId sorted DESCENDING by timeTsm (matching Django's purchases_by_base)
+    const purchasesByBase: Record<string, RawBuyRecord[]> = {}
+    for (const p of rawPurchases) {
+      if (!purchasesByBase[p.baseId]) purchasesByBase[p.baseId] = []
+      purchasesByBase[p.baseId].push({
+        itemString: p.itemId,
+        baseId: p.baseId,
+        priceCopper: p.priceCopper,
+        quantity: p.quantity * p.stackSize,
+        timestamp: p.timeTsm,
+        buyer: p.buyer,
+        realm: p.realm
+      })
+    }
+    for (const k in purchasesByBase) {
+      purchasesByBase[k].sort((a, b) => b.timestamp - a.timestamp)
     }
 
-    // Parse Buy Records for FIFO cost matching
-    const buysByItem: Record<string, RawBuyRecord[]> = {}
-    for (const m of buysMatches) {
-      const key = m[1] || m[2] || ''
-      const str = m[3] || m[4] || m[5]
-      if (!str) continue
-
-      const realmMatch = key.match(/r@([^@]+)@/i)
-      const realm = realmMatch ? realmMatch[1] : undefined
-
-      const lines = str.split(/\\n|\r?\n/)
-      if (lines.length <= 1) continue
-
-      const headerLine = cleanStr(lines[0])
-      const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
-
-      const itemIdx = headers.indexOf('itemstring')
-      const stackIdx = headers.indexOf('stacksize')
-      const qtyIdx = headers.indexOf('quantity')
-      const priceIdx = headers.indexOf('price')
-      const timeIdx = headers.indexOf('time')
-
-      for (let i = 1; i < lines.length; i++) {
-        const line = cleanStr(lines[i])
-        if (!line) continue
-        const parts = line.split(',')
-        if (parts.length < 3) continue
-
-        const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
-        const stackSize = parseInt(cleanStr(parts[stackIdx !== -1 ? stackIdx : 1]), 10) || 1
-        const rawQty = parseInt(cleanStr(parts[qtyIdx !== -1 ? qtyIdx : 2]), 10) || 1
-        const priceCopper = parseInt(cleanStr(parts[priceIdx !== -1 ? priceIdx : 3]), 10) || 0
-        const time = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 6]), 10) || 0
-
-        if (!itemString || priceCopper <= 0) continue
-
-        const totalQty = rawQty * stackSize
-        const rec: RawBuyRecord = { itemString, priceCopper, quantity: totalQty, timestamp: time, realm }
-        const baseKey = extractBaseKey(itemString)
-
-        if (!buysByItem[itemString]) buysByItem[itemString] = []
-        buysByItem[itemString].push(rec)
-
-        if (baseKey && baseKey !== itemString) {
-          if (!buysByItem[baseKey]) buysByItem[baseKey] = []
-          buysByItem[baseKey].push(rec)
-        }
-      }
+    // Group expired and cancelled by baseId
+    const expiredByBase: Record<string, PostRecord[]> = {}
+    for (const e of rawExpired) {
+      if (!expiredByBase[e.baseId]) expiredByBase[e.baseId] = []
+      expiredByBase[e.baseId].push(e)
     }
 
-    // Sort buys by timestamp ascending for FIFO matching
-    for (const key in buysByItem) {
-      buysByItem[key].sort((a, b) => a.timestamp - b.timestamp)
-    }
-
-    // Parse Sales Records
-    const rawSales: RecentSaleItemDto[] = []
-
-    for (const m of salesMatches) {
-      const key = m[1] || m[2] || ''
-      const str = m[3] || m[4] || m[5]
-      if (!str) continue
-
-      const realmMatch = key.match(/r@([^@]+)@/i)
-      const realm = realmMatch ? realmMatch[1] : undefined
-
-      const lines = str.split(/\\n|\r?\n/)
-      if (lines.length <= 1) continue
-
-      const headerLine = cleanStr(lines[0])
-      const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
-
-      const itemIdx = headers.indexOf('itemstring')
-      const stackIdx = headers.indexOf('stacksize')
-      const qtyIdx = headers.indexOf('quantity')
-      const priceIdx = headers.indexOf('price')
-      const buyerIdx = headers.indexOf('otherplayer')
-      const timeIdx = headers.indexOf('time')
-      const sourceIdx = headers.indexOf('source')
-
-      for (let i = 1; i < lines.length; i++) {
-        const line = cleanStr(lines[i])
-        if (!line) continue
-        const parts = line.split(',')
-        if (parts.length < 4) continue
-
-        const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
-        const stackSize = parseInt(cleanStr(parts[stackIdx !== -1 ? stackIdx : 1]), 10) || 1
-        const rawQty = parseInt(cleanStr(parts[qtyIdx !== -1 ? qtyIdx : 2]), 10) || 1
-        const sellPriceCopper = parseInt(cleanStr(parts[priceIdx !== -1 ? priceIdx : 3]), 10) || 0
-        const buyer = cleanStr(parts[buyerIdx !== -1 ? buyerIdx : 4]) || undefined
-        const sellTimeTs = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 6]), 10) || 0
-        const source = cleanStr(parts[sourceIdx !== -1 ? sourceIdx : 7])
-
-        if (!itemString || sellPriceCopper <= 0) continue
-
-        // Include Auction sales
-        if (source.toLowerCase() !== 'auction' && source !== '') continue
-
-        const totalQuantity = rawQty * stackSize
-        const bId = extractBlizzardId(itemString)
-        const itemName = bId ? `Item ${bId}` : itemString
-        const baseKey = extractBaseKey(itemString)
-
-        // Attempt FIFO buy matching by exact string or base key (prior to sale time)
-        let buyPriceCopper = 0
-        let buyTimeTs: number | undefined
-        const buysList = buysByItem[itemString] || buysByItem[baseKey]
-        if (buysList && buysList.length > 0) {
-          const priorBuys = buysList.filter((b) => b.timestamp <= sellTimeTs)
-          const matchedBuy = priorBuys.length > 0 ? priorBuys[priorBuys.length - 1] : buysList[0]
-          buyPriceCopper = matchedBuy.priceCopper
-          buyTimeTs = matchedBuy.timestamp
-        }
-
-        const netProfitCopper = (sellPriceCopper * totalQuantity) - (buyPriceCopper * totalQuantity)
-
-        // Calculate postsBeforeSale from expired and cancelled history on the same realm
-        const allPosts = postRecordsByItem[itemString] || postRecordsByItem[baseKey] || []
-        const saleRealmLower = realm ? realm.toLowerCase() : ''
-        let postsBeforeSale = 1 // 1 for the sale posting itself
-        const minTime = buyTimeTs || (sellTimeTs - (30 * 24 * 60 * 60)) // fallback to 30 days before sale
-
-        for (const p of allPosts) {
-          if ((!saleRealmLower || !p.realm || p.realm === saleRealmLower) && p.time >= minTime && p.time <= sellTimeTs) {
-            postsBeforeSale++
-          }
-        }
-
-        rawSales.push({
-          id: `local-${sellTimeTs}-${rawSales.length}`,
-          itemId: itemString,
-          blizzardId: bId,
-          itemName,
-          buyTimeTs: buysList && buysList[0] ? buysList[0].timestamp : undefined,
-          boughtAt: buysList && buysList[0] ? formatTs(buysList[0].timestamp) : undefined,
-          sellTimeTs,
-          soldAt: formatTs(sellTimeTs),
-          quantity: totalQuantity,
-          buyPriceCopper,
-          sellPriceCopper,
-          postsBeforeSale,
-          netProfitCopper,
-          buyer,
-          realm
-        })
-      }
+    const cancelledByBase: Record<string, PostRecord[]> = {}
+    for (const c of rawCancelled) {
+      if (!cancelledByBase[c.baseId]) cancelledByBase[c.baseId] = []
+      cancelledByBase[c.baseId].push(c)
     }
 
     // Sort sales by sell timestamp descending (newest sales first)
-    rawSales.sort((a, b) => (b.sellTimeTs || 0) - (a.sellTimeTs || 0))
+    rawSales.sort((a, b) => b.timeTsm - a.timeTsm)
 
-    const slicedSales = rawSales.slice(0, limit)
+    const processedSales: RecentSaleItemDto[] = []
 
-    // Compute totals specifically for the displayed sliced sales
+    for (const s of rawSales) {
+      const itemId = s.itemId
+      const baseId = s.baseId
+      const saleTime = s.timeTsm
+      const totalQty = s.quantity * s.stackSize
+
+      let buyPriceCopper = 0
+      let buyTimeTs: number | undefined
+      let boughtBy: string | undefined
+      let pastBuys: RawBuyRecord[] = []
+
+      if (purchasesByBase[baseId]) {
+        pastBuys = purchasesByBase[baseId].filter((p) => p.timestamp <= saleTime)
+        if (pastBuys.length > 0) {
+          buyPriceCopper = pastBuys[0].priceCopper
+          buyTimeTs = pastBuys[0].timestamp
+          boughtBy = pastBuys[0].buyer
+        } else if (purchasesByBase[baseId].length > 0) {
+          buyPriceCopper = purchasesByBase[baseId][0].priceCopper
+          buyTimeTs = purchasesByBase[baseId][0].timestamp
+          boughtBy = purchasesByBase[baseId][0].buyer
+        }
+      }
+
+      const sellPriceCopper = s.priceCopper
+      // Exact Django net profit formula: int(sell_price * 0.95) - buy_price
+      const singleNetProfit = Math.floor(sellPriceCopper * 0.95) - buyPriceCopper
+      const netProfitCopper = singleNetProfit * totalQty
+
+      const buyTime = pastBuys.length > 0 ? pastBuys[0].timestamp : (buyTimeTs || 0)
+      const expCnt = (expiredByBase[baseId] || []).filter((e) => (buyTime === 0 || buyTime <= e.timestamp) && e.timestamp <= saleTime).length
+      const cancCnt = (cancelledByBase[baseId] || []).filter((c) => (buyTime === 0 || buyTime <= c.timestamp) && c.timestamp <= saleTime).length
+
+      const postsBeforeSale = expCnt + cancCnt + 1
+      const bId = extractBlizzardId(itemId)
+
+      processedSales.push({
+        id: `local-${saleTime}-${processedSales.length}`,
+        itemId,
+        blizzardId: bId,
+        itemName: bId ? `Item ${bId}` : itemId,
+        buyTimeTs: buyTime > 0 ? buyTime : undefined,
+        boughtAt: buyTime > 0 ? formatTs(buyTime) : undefined,
+        sellTimeTs: saleTime,
+        soldAt: formatTs(saleTime),
+        quantity: totalQty,
+        buyPriceCopper,
+        sellPriceCopper,
+        postsBeforeSale,
+        netProfitCopper,
+        buyer: boughtBy || s.seller,
+        realm: s.realm
+      })
+    }
+
+    const slicedSales = processedSales.slice(0, limit)
+
     let totalRevenue = 0
     let totalCost = 0
 
@@ -309,7 +257,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     return {
       ok: true,
       sales: slicedSales,
-      total: rawSales.length,
+      total: processedSales.length,
       totalRevenueCopper: totalRevenue,
       totalCostCopper: totalCost,
       totalProfitCopper: totalProfit,
