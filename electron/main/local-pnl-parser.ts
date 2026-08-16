@@ -2,21 +2,39 @@ import { readFileSync, existsSync } from 'node:fs'
 import type { RecentSaleItemDto, RecentSalesResponseDto } from './http-client'
 import { resolveLuaPath } from './paths'
 
-interface RawBuyRecord {
-  itemString: string
+interface RawSaleRecord {
+  itemId: string
   baseId: string
-  priceCopper: number
+  stackSize: number
   quantity: number
-  timestamp: number
-  buyer?: string
-  realm?: string
+  priceCopper: number
+  buyer: string
+  seller: string
+  timeTsm: number
+  source: string
+  realm: string
 }
 
-interface PostRecord {
+interface RawBuyRecord {
+  itemId: string
   baseId: string
-  player: string
+  stackSize: number
+  quantity: number
+  priceCopper: number
+  seller: string
+  buyer: string
+  timeTsm: number
+  source: string
   realm: string
-  timestamp: number
+}
+
+interface RawPostRecord {
+  itemId: string
+  baseId: string
+  quantity: number
+  player: string
+  timeTsm: number
+  realm: string
 }
 
 /**
@@ -62,7 +80,7 @@ function cleanStr(str?: string): string {
 
 /**
  * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
- * Directly ports the Django backend companion_recent_sales algorithm from Auction-house-Profit.
+ * Replicates 100% of the Django backend companion_recent_sales and compute_resale_analytics logic.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -110,75 +128,99 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
       return items
     }
 
-    const rawSales = parseSection(salesPattern).map((x) => ({
+    const rawSales: RawSaleRecord[] = parseSection(salesPattern).map((x) => ({
       itemId: cleanStr(x.parts[0]),
       baseId: cleanBaseItemId(x.parts[0]),
       stackSize: parseInt(cleanStr(x.parts[1]), 10) || 1,
       quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
       priceCopper: parseInt(cleanStr(x.parts[3]), 10) || 0,
-      buyer: cleanStr(x.parts[4]),
+      buyer: cleanStr(x.parts[4]), // Customer who bought it from you on AH
       seller: cleanStr(x.parts[5]),
       timeTsm: parseInt(cleanStr(x.parts[6]), 10) || 0,
       source: cleanStr(x.parts[7]),
       realm: x.realm
     })).filter((s) => s.priceCopper > 0 && (s.source.toLowerCase() === 'auction' || !s.source))
 
-    const rawPurchases = parseSection(buysPattern).map((x) => ({
+    const rawPurchases: RawBuyRecord[] = parseSection(buysPattern).map((x) => ({
       itemId: cleanStr(x.parts[0]),
       baseId: cleanBaseItemId(x.parts[0]),
       stackSize: parseInt(cleanStr(x.parts[1]), 10) || 1,
       quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
       priceCopper: parseInt(cleanStr(x.parts[3]), 10) || 0,
       seller: cleanStr(x.parts[4]),
-      buyer: cleanStr(x.parts[5]), // Your character who bought it
+      buyer: cleanStr(x.parts[5]),
       timeTsm: parseInt(cleanStr(x.parts[6]), 10) || 0,
       source: cleanStr(x.parts[7]),
       realm: x.realm
     })).filter((p) => p.priceCopper > 0)
 
-    const rawExpired = parseSection(expiredPattern).map((x) => ({
+    const rawExpired: RawPostRecord[] = parseSection(expiredPattern).map((x) => ({
+      itemId: cleanStr(x.parts[0]),
       baseId: cleanBaseItemId(x.parts[0]),
+      quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
       player: cleanStr(x.parts[3]),
-      timestamp: parseInt(cleanStr(x.parts[4]), 10) || 0,
+      timeTsm: parseInt(cleanStr(x.parts[4]), 10) || 0,
       realm: x.realm
-    })).filter((e) => e.timestamp > 0)
+    })).filter((e) => e.timeTsm > 0)
 
-    const rawCancelled = parseSection(cancelledPattern).map((x) => ({
+    const rawCancelled: RawPostRecord[] = parseSection(cancelledPattern).map((x) => ({
+      itemId: cleanStr(x.parts[0]),
       baseId: cleanBaseItemId(x.parts[0]),
+      quantity: parseInt(cleanStr(x.parts[2]), 10) || 1,
       player: cleanStr(x.parts[3]),
-      timestamp: parseInt(cleanStr(x.parts[4]), 10) || 0,
+      timeTsm: parseInt(cleanStr(x.parts[4]), 10) || 0,
       realm: x.realm
-    })).filter((c) => c.timestamp > 0)
+    })).filter((c) => c.timeTsm > 0)
 
-    // Group purchases by baseId sorted DESCENDING by timeTsm (matching Django's purchases_by_base)
+    // Index purchases by EXACT itemId AND baseId
+    const purchasesByExactItem: Record<string, RawBuyRecord[]> = {}
     const purchasesByBase: Record<string, RawBuyRecord[]> = {}
     for (const p of rawPurchases) {
+      if (!purchasesByExactItem[p.itemId]) purchasesByExactItem[p.itemId] = []
+      purchasesByExactItem[p.itemId].push(p)
+
       if (!purchasesByBase[p.baseId]) purchasesByBase[p.baseId] = []
-      purchasesByBase[p.baseId].push({
-        itemString: p.itemId,
-        baseId: p.baseId,
-        priceCopper: p.priceCopper,
-        quantity: p.quantity * p.stackSize,
-        timestamp: p.timeTsm,
-        buyer: p.buyer,
-        realm: p.realm
-      })
+      purchasesByBase[p.baseId].push(p)
     }
-    for (const k in purchasesByBase) {
-      purchasesByBase[k].sort((a, b) => b.timestamp - a.timestamp)
-    }
+    for (const k in purchasesByExactItem) purchasesByExactItem[k].sort((a, b) => b.timeTsm - a.timeTsm)
+    for (const k in purchasesByBase) purchasesByBase[k].sort((a, b) => b.timeTsm - a.timeTsm)
 
-    // Group expired and cancelled by baseId
-    const expiredByBase: Record<string, PostRecord[]> = {}
+    // Compute resale_analytics EXACTLY as Django's compute_resale_analytics
+    const salesByExactItem: Record<string, RawSaleRecord[]> = {}
+    const expByExactItem: Record<string, RawPostRecord[]> = {}
+    const cancByExactItem: Record<string, RawPostRecord[]> = {}
+
+    for (const s of rawSales) {
+      if (!salesByExactItem[s.itemId]) salesByExactItem[s.itemId] = []
+      salesByExactItem[s.itemId].push(s)
+    }
     for (const e of rawExpired) {
-      if (!expiredByBase[e.baseId]) expiredByBase[e.baseId] = []
-      expiredByBase[e.baseId].push(e)
+      if (!expByExactItem[e.itemId]) expByExactItem[e.itemId] = []
+      expByExactItem[e.itemId].push(e)
+    }
+    for (const c of rawCancelled) {
+      if (!cancByExactItem[c.itemId]) cancByExactItem[c.itemId] = []
+      cancByExactItem[c.itemId].push(c)
     }
 
-    const cancelledByBase: Record<string, PostRecord[]> = {}
-    for (const c of rawCancelled) {
-      if (!cancelledByBase[c.baseId]) cancelledByBase[c.baseId] = []
-      cancelledByBase[c.baseId].push(c)
+    const postsPerSaleByItem: Record<string, number> = {}
+    const allItemIds = new Set([...Object.keys(salesByExactItem), ...Object.keys(purchasesByExactItem)])
+
+    for (const itemId of allItemIds) {
+      const itemSales = salesByExactItem[itemId] || []
+      const itemExp = expByExactItem[itemId] || []
+      const itemCanc = cancByExactItem[itemId] || []
+
+      const totalSoldQty = itemSales.reduce((acc, s) => acc + (s.quantity * s.stackSize), 0)
+      const totalExpiredQty = itemExp.reduce((acc, e) => acc + e.quantity, 0)
+      const totalCancelledQty = itemCanc.reduce((acc, c) => acc + c.quantity, 0)
+      const totalFailedPosts = totalExpiredQty + totalCancelledQty
+
+      if (totalSoldQty > 0) {
+        postsPerSaleByItem[itemId] = Math.round((totalFailedPosts + totalSoldQty) / totalSoldQty)
+      } else {
+        postsPerSaleByItem[itemId] = 1
+      }
     }
 
     // Sort sales by sell timestamp descending (newest sales first)
@@ -194,19 +236,24 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
 
       let buyPriceCopper = 0
       let buyTimeTs: number | undefined
-      let boughtBy: string | undefined
       let pastBuys: RawBuyRecord[] = []
 
-      if (purchasesByBase[baseId]) {
-        pastBuys = purchasesByBase[baseId].filter((p) => p.timestamp <= saleTime)
+      // Check exact item match first (like Django)
+      if (purchasesByExactItem[itemId]) {
+        pastBuys = purchasesByExactItem[itemId].filter((p) => p.timeTsm <= saleTime)
         if (pastBuys.length > 0) {
           buyPriceCopper = pastBuys[0].priceCopper
-          buyTimeTs = pastBuys[0].timestamp
-          boughtBy = pastBuys[0].buyer
-        } else if (purchasesByBase[baseId].length > 0) {
-          buyPriceCopper = purchasesByBase[baseId][0].priceCopper
-          buyTimeTs = purchasesByBase[baseId][0].timestamp
-          boughtBy = purchasesByBase[baseId][0].buyer
+          buyTimeTs = pastBuys[0].timeTsm
+        }
+      }
+
+      // If no exact item match, check baseId (only if purchase is recent <= 90 days)
+      if (buyPriceCopper === 0 && purchasesByBase[baseId]) {
+        const ninetyDaysSec = 90 * 86400
+        pastBuys = purchasesByBase[baseId].filter((p) => p.timeTsm <= saleTime && (saleTime - p.timeTsm) <= ninetyDaysSec)
+        if (pastBuys.length > 0) {
+          buyPriceCopper = pastBuys[0].priceCopper
+          buyTimeTs = pastBuys[0].timeTsm
         }
       }
 
@@ -215,11 +262,15 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
       const singleNetProfit = Math.floor(sellPriceCopper * 0.95) - buyPriceCopper
       const netProfitCopper = singleNetProfit * totalQty
 
-      const buyTime = pastBuys.length > 0 ? pastBuys[0].timestamp : (buyTimeTs || 0)
-      const expCnt = (expiredByBase[baseId] || []).filter((e) => (buyTime === 0 || buyTime <= e.timestamp) && e.timestamp <= saleTime).length
-      const cancCnt = (cancelledByBase[baseId] || []).filter((c) => (buyTime === 0 || buyTime <= c.timestamp) && c.timestamp <= saleTime).length
+      // Determine posts count (matching Django compute_resale_analytics)
+      let postsBeforeSale = postsPerSaleByItem[itemId]
+      if (!postsBeforeSale || postsBeforeSale < 1) {
+        const baseSales = (salesByExactItem[baseId] || []).length
+        const baseExp = (expByExactItem[baseId] || []).length
+        const baseCanc = (cancByExactItem[baseId] || []).length
+        postsBeforeSale = baseSales > 0 ? Math.round((baseExp + baseCanc + baseSales) / baseSales) : 1
+      }
 
-      const postsBeforeSale = expCnt + cancCnt + 1
       const bId = extractBlizzardId(itemId)
 
       processedSales.push({
@@ -227,8 +278,8 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         itemId,
         blizzardId: bId,
         itemName: bId ? `Item ${bId}` : itemId,
-        buyTimeTs: buyTime > 0 ? buyTime : undefined,
-        boughtAt: buyTime > 0 ? formatTs(buyTime) : undefined,
+        buyTimeTs: buyTimeTs && buyTimeTs > 0 ? buyTimeTs : undefined,
+        boughtAt: buyTimeTs && buyTimeTs > 0 ? formatTs(buyTimeTs) : undefined,
         sellTimeTs: saleTime,
         soldAt: formatTs(saleTime),
         quantity: totalQty,
@@ -236,7 +287,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         sellPriceCopper,
         postsBeforeSale,
         netProfitCopper,
-        buyer: boughtBy || s.seller,
+        buyer: s.buyer, // Django returns s.buyer (customer who bought it from you on AH)
         realm: s.realm
       })
     }
