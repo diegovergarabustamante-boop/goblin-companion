@@ -56,23 +56,23 @@ export function startWatcher(handler: WatchHandler): void {
 
   const { wowSavedVariablesPath, autoSyncEnabled } = getSettings()
   if (!autoSyncEnabled) {
-    appendActivity('info', 'Watcher en pausa (auto-sync apagado)')
+    appendActivity('info', 'Watcher paused (auto-sync OFF)')
     return
   }
   const folder = normalizeSavedVariablesPath(wowSavedVariablesPath)
   if (!folder) {
-    appendActivity('warn', 'Watcher no iniciado: falta la carpeta SavedVariables en Settings')
+    appendActivity('warn', 'Watcher not started: SavedVariables folder missing in Settings')
     return
   }
   if (!existsSync(folder)) {
-    appendActivity('error', 'Carpeta SavedVariables no encontrada', folder)
+    appendActivity('error', 'SavedVariables folder not found', folder)
     return
   }
 
   const stabilityMs = Number(process.env.WATCHER_STABILITY_MS ?? 2000)
   const targets = resolveWatchTargets(folder).filter((t) => existsSync(t.filePath))
   if (targets.length === 0) {
-    appendActivity('error', 'No hay TradeSkillMaster.lua en SavedVariables', folder)
+    appendActivity('error', 'TradeSkillMaster.lua not found in SavedVariables folder', folder)
     return
   }
 
@@ -93,23 +93,23 @@ export function startWatcher(handler: WatchHandler): void {
 
     const validation = validateLuaFile(changedPath)
     if (!validation.ok) {
-      appendActivity('warn', `Cambio ignorado en ${basename(changedPath)}`, validation.reason)
+      appendActivity('warn', `Change ignored in ${basename(changedPath)}`, validation.reason)
       return
     }
 
-    appendActivity('info', `Archivo estable: ${basename(changedPath)}`, kinds.join('+'))
+    appendActivity('info', `File stable: ${basename(changedPath)}`, kinds.join('+'))
     for (const kind of kinds) {
       onChange({ kind, filePath: changedPath })
     }
   })
 
   watcher.on('error', (error) => {
-    appendActivity('error', 'Error del watcher', error instanceof Error ? error.message : String(error))
+    appendActivity('error', 'Watcher error', error instanceof Error ? error.message : String(error))
   })
 
   appendActivity(
     'success',
-    'Watcher activo',
+    'Watcher active',
     targets.map((t) => `${basename(t.filePath)} → ${t.kinds.join('+')}`).join(', ')
   )
 }

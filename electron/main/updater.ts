@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { IpcChannel, type UpdateStatusInfo } from '../../shared/ipc'
+import { appendActivity } from './activity-log'
 
 const REPO_OWNER = 'diegovergarabustamante-boop'
 const REPO_NAME = 'goblin-companion'
@@ -75,6 +76,8 @@ export class UpdateManager {
     const currentVer = app.getVersion() || '0.1.0'
     this.status.currentVersion = currentVer
 
+    appendActivity('info', '🔍 Checking for software updates…', `Current version: v${currentVer}`)
+
     try {
       const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`
       const res = await fetch(url, {
@@ -112,6 +115,13 @@ export class UpdateManager {
                 error: null,
                 lastCheckedAt: new Date().toISOString()
               }
+
+              if (hasUpdate) {
+                appendActivity('success', `✨ New version available (v${latestVer})`, `Current: v${currentVer} · Click update badge to install`)
+              } else {
+                appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
+              }
+
               this.broadcastStatus()
               return this.getStatus()
             }
@@ -125,6 +135,7 @@ export class UpdateManager {
         this.status.hasUpdate = false
         this.status.latestVersion = currentVer
         this.status.lastCheckedAt = new Date().toISOString()
+        appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
         this.broadcastStatus()
         return this.getStatus()
       }
@@ -166,11 +177,18 @@ export class UpdateManager {
         error: null,
         lastCheckedAt: new Date().toISOString()
       }
+
+      if (hasUpdate) {
+        appendActivity('success', `✨ New version available (v${latestVer})`, `Current: v${currentVer} · Click update badge to install`)
+      } else {
+        appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       this.status.checking = false
       this.status.error = message
       this.status.lastCheckedAt = new Date().toISOString()
+      appendActivity('error', '❌ Update check failed', message)
     }
 
     this.broadcastStatus()

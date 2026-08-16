@@ -160,7 +160,7 @@ export function startLocalServer(port = getSettings().localServerPort): void {
   })
 
   server.listen(port, '127.0.0.1', () => {
-    appendActivity('success', `Local server en 127.0.0.1:${port}`, '/status · /sync · /backup')
+    appendActivity('success', `Local server running on 127.0.0.1:${port}`, '/status · /sync · /backup')
   })
 }
 

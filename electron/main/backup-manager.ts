@@ -180,9 +180,9 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
     })
   }
 
-  const kindLabel = kind === 'snapshot' ? 'Snapshot manual' : 'Backup por escritura'
+  const kindLabel = kind === 'snapshot' ? 'Manual snapshot' : 'Write backup'
   const logMessage = createdItems.map((i) => i.fileName).join(' + ')
-  appendActivity('success', `${kindLabel} creado`, logMessage)
+  appendActivity('success', `${kindLabel} created`, logMessage)
 
   // Rotate Write backups strictly obeying backupCount setting
   if (kind === 'write') {
@@ -212,7 +212,7 @@ export function createRotatingBackup(kind: BackupKind = 'write', customSourcePat
         for (const item of itemsToDelete) {
           try {
             if (existsSync(item.filePath)) unlinkSync(item.filePath)
-            appendActivity('info', 'Write backup rotado (eliminado)', item.fileName)
+            appendActivity('info', 'Write backup rotated (deleted)', item.fileName)
           } catch {
             // ignore
           }
@@ -252,14 +252,14 @@ export function deleteBackup(fileName: string, kind?: BackupKind): { ok: true } 
     }
 
     if (!deleted) {
-      return { ok: false, error: `Archivo ${fileName} no encontrado` }
+      return { ok: false, error: `File ${fileName} not found` }
     }
 
-    appendActivity('info', 'Archivo de backup eliminado', fileName)
+    appendActivity('info', 'Backup file deleted', fileName)
     return { ok: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
-    appendActivity('error', 'Error al eliminar backup', msg)
+    appendActivity('error', 'Error deleting backup', msg)
     return { ok: false, error: msg }
   }
 }
@@ -270,10 +270,10 @@ export function deleteBackup(fileName: string, kind?: BackupKind): { ok: true } 
 export function restoreBackup(fileName: string, kind?: BackupKind): { ok: true; restoredTo: string } | { ok: false; error: string } {
   const all = listBackups(kind)
   const chosen = all.find((b) => b.fileName === fileName || b.id === fileName)
-  if (!chosen) return { ok: false, error: `Archivo ${fileName} no encontrado` }
+  if (!chosen) return { ok: false, error: `File ${fileName} not found` }
 
   const mainTarget = resolveLuaPath('inventory')
-  if (!mainTarget) return { ok: false, error: 'SavedVariables no configurado' }
+  if (!mainTarget) return { ok: false, error: 'SavedVariables folder not configured' }
 
   const savedVarDir = dirname(mainTarget)
   const targetPath = join(savedVarDir, chosen.targetFilename)
@@ -290,11 +290,11 @@ export function restoreBackup(fileName: string, kind?: BackupKind): { ok: true; 
     copyFileSync(tmp, targetPath)
     if (existsSync(tmp)) unlinkSync(tmp)
 
-    appendActivity('success', 'Archivo restaurado', `${chosen.fileName} → ${chosen.targetFilename}`)
+    appendActivity('success', 'Backup restored', `${chosen.fileName} → ${chosen.targetFilename}`)
     return { ok: true, restoredTo: targetPath }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    appendActivity('error', 'Restore falló', message)
+    appendActivity('error', 'Restore failed', message)
     return { ok: false, error: message }
   }
 }

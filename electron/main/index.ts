@@ -322,7 +322,7 @@ if (!gotLock) {
     applyAutostart(getSettings().startWithWindows)
     updateManager.init()
     broadcastStatus()
-    appendActivity('info', 'Goblin Companion listo')
+    appendActivity('info', 'Goblin Companion ready')
   })
 
   app.on('before-quit', () => {
