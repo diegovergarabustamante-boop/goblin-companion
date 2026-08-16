@@ -53,9 +53,9 @@ function cleanStr(str?: string): string {
 /**
  * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
  * Used as a fallback when Django backend is unreachable.
- * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source)
- * and supports escaped literal \n sequences across TSM 4 / TSM 5 saved variables.
- * Also performs Base Item Matching across bonus IDs and item suffixes.
+ * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source),
+ * supports quote-safe realm keys (e.g. Kel'Thuzad, Quel'Thalas),
+ * escaped literal \n sequences, and base item key matching across bonus IDs.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -69,9 +69,9 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   try {
     const content = readFileSync(luaPath, 'utf-8')
 
-    // Capture accounting blocks: e.g. ["r@RealmName@internalData@csvSales"] = "..." or ["csvSales"] = "..."
-    const salesRegex = /\[["']([^"']*csvSales[^"']*)["']\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
-    const buysRegex = /\[["']([^"']*csvBuys[^"']*)["']\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    // Quote-safe capture of accounting blocks, allowing single quotes in realm names (e.g. Kel'Thuzad)
+    const salesRegex = /\[(?:"([^"]*csvSales[^"]*)"|'([^']*csvSales[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    const buysRegex = /\[(?:"([^"]*csvBuys[^"]*)"|'([^']*csvBuys[^']*)')\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
 
     const salesMatches = Array.from(content.matchAll(salesRegex))
     const buysMatches = Array.from(content.matchAll(buysRegex))
@@ -79,7 +79,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     // Parse Buy Records for FIFO cost matching
     const buysByItem: Record<string, RawBuyRecord[]> = {}
     for (const m of buysMatches) {
-      const str = m[2] || m[3] || m[4]
+      const str = m[3] || m[4] || m[5]
       if (!str) continue
 
       const lines = str.split(/\\n|\r?\n/)
@@ -129,13 +129,10 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
 
     // Parse Sales Records
     const rawSales: RecentSaleItemDto[] = []
-    let totalRevenue = 0
-    let totalCost = 0
-    let totalProfit = 0
 
     for (const m of salesMatches) {
-      const key = m[1] || ''
-      const str = m[2] || m[3] || m[4]
+      const key = m[1] || m[2] || ''
+      const str = m[3] || m[4] || m[5]
       if (!str) continue
 
       const realmMatch = key.match(/r@([^@]+)@/i)
@@ -189,10 +186,6 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
 
         const netProfitCopper = (sellPriceCopper * totalQuantity) - (buyPriceCopper * totalQuantity)
 
-        totalRevenue += sellPriceCopper * totalQuantity
-        totalCost += buyPriceCopper * totalQuantity
-        totalProfit += netProfitCopper
-
         rawSales.push({
           id: `local-${sellTimeTs}-${rawSales.length}`,
           itemId: itemString,
@@ -217,6 +210,18 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     rawSales.sort((a, b) => (b.sellTimeTs || 0) - (a.sellTimeTs || 0))
 
     const slicedSales = rawSales.slice(0, limit)
+
+    // Compute totals specifically for the displayed sliced sales
+    let totalRevenue = 0
+    let totalCost = 0
+
+    for (const item of slicedSales) {
+      const qty = item.quantity || 1
+      totalRevenue += (item.sellPriceCopper || 0) * qty
+      totalCost += (item.buyPriceCopper || 0) * qty
+    }
+
+    const totalProfit = totalRevenue - totalCost
 
     return {
       ok: true,
