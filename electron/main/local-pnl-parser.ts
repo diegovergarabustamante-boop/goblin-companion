@@ -41,8 +41,10 @@ function cleanStr(str?: string): string {
 }
 
 /**
- * Local Lua parser for TradeSkillMaster.lua accounting CSV data.
+ * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
  * Used as a fallback when Django backend is unreachable.
+ * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source)
+ * and supports escaped literal \n sequences across TSM 4 / TSM 5 saved variables.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -56,43 +58,48 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   try {
     const content = readFileSync(luaPath, 'utf-8')
 
-    // Find csvSales and csvBuys blocks in TSM Lua file
-    // TSM stores these as ["g@ ... @csvSales"] = "..." or csvSales = "..."
-    const salesMatches = Array.from(content.matchAll(/csvSales["']?\s*\]?\s*=\s*(?:["'](.*?)["']|\{(.*?)\})/gs))
-    const buysMatches = Array.from(content.matchAll(/csvBuys["']?\s*\]?\s*=\s*(?:["'](.*?)["']|\{(.*?)\})/gs))
+    // Capture accounting blocks: e.g. ["r@RealmName@internalData@csvSales"] = "..." or ["csvSales"] = "..."
+    const salesRegex = /\[["']([^"']*csvSales[^"']*)["']\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
+    const buysRegex = /\[["']([^"']*csvBuys[^"']*)["']\]\s*=\s*(?:"([^"]*)"|'([^']*)'|\{(.*?)\})/gs
 
-    const salesRawStrings: string[] = []
-    for (const match of salesMatches) {
-      const csvData = match[1] || match[2]
-      if (csvData) salesRawStrings.push(csvData)
-    }
-
-    const buysRawStrings: string[] = []
-    for (const match of buysMatches) {
-      const csvData = match[1] || match[2]
-      if (csvData) buysRawStrings.push(csvData)
-    }
+    const salesMatches = Array.from(content.matchAll(salesRegex))
+    const buysMatches = Array.from(content.matchAll(buysRegex))
 
     // Parse Buy Records for FIFO cost matching
     const buysByItem: Record<string, RawBuyRecord[]> = {}
-    for (const rawBlock of buysRawStrings) {
-      const lines = rawBlock.split('\n')
-      for (const line of lines) {
-        const cleaned = cleanStr(line)
-        if (!cleaned) continue
-        const parts = cleaned.split(',')
+    for (const m of buysMatches) {
+      const str = m[2] || m[3] || m[4]
+      if (!str) continue
+
+      const lines = str.split(/\\n|\r?\n/)
+      if (lines.length <= 1) continue
+
+      const headerLine = cleanStr(lines[0])
+      const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
+
+      const itemIdx = headers.indexOf('itemstring')
+      const stackIdx = headers.indexOf('stacksize')
+      const qtyIdx = headers.indexOf('quantity')
+      const priceIdx = headers.indexOf('price')
+      const timeIdx = headers.indexOf('time')
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = cleanStr(lines[i])
+        if (!line) continue
+        const parts = line.split(',')
         if (parts.length < 3) continue
 
-        // Typical TSM Buy CSV: itemString, price, quantity, seller, player, time, source
-        const itemString = cleanStr(parts[0])
-        const priceCopper = parseInt(cleanStr(parts[1]), 10) || 0
-        const quantity = parseInt(cleanStr(parts[2]), 10) || 1
-        const time = parseInt(cleanStr(parts[5] || parts[3]), 10) || 0
+        const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
+        const stackSize = parseInt(cleanStr(parts[stackIdx !== -1 ? stackIdx : 1]), 10) || 1
+        const rawQty = parseInt(cleanStr(parts[qtyIdx !== -1 ? qtyIdx : 2]), 10) || 1
+        const priceCopper = parseInt(cleanStr(parts[priceIdx !== -1 ? priceIdx : 3]), 10) || 0
+        const time = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 6]), 10) || 0
 
         if (!itemString) continue
 
+        const totalQty = rawQty * stackSize
         if (!buysByItem[itemString]) buysByItem[itemString] = []
-        buysByItem[itemString].push({ itemString, priceCopper, quantity, timestamp: time })
+        buysByItem[itemString].push({ itemString, priceCopper, quantity: totalQty, timestamp: time })
       }
     }
 
@@ -107,23 +114,48 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
     let totalCost = 0
     let totalProfit = 0
 
-    for (const rawBlock of salesRawStrings) {
-      const lines = rawBlock.split('\n')
-      for (const line of lines) {
-        const cleaned = cleanStr(line)
-        if (!cleaned) continue
-        const parts = cleaned.split(',')
-        if (parts.length < 3) continue
+    for (const m of salesMatches) {
+      const key = m[1] || ''
+      const str = m[2] || m[3] || m[4]
+      if (!str) continue
 
-        // Typical TSM Sales CSV: itemString, price, quantity, buyer, player, time, source
-        const itemString = cleanStr(parts[0])
-        const sellPriceCopper = parseInt(cleanStr(parts[1]), 10) || 0
-        const quantity = parseInt(cleanStr(parts[2]), 10) || 1
-        const buyer = cleanStr(parts[3])
-        const sellTimeTs = parseInt(cleanStr(parts[5] || parts[4]), 10) || 0
+      const realmMatch = key.match(/r@([^@]+)@/i)
+      const realm = realmMatch ? realmMatch[1] : undefined
+
+      const lines = str.split(/\\n|\r?\n/)
+      if (lines.length <= 1) continue
+
+      const headerLine = cleanStr(lines[0])
+      const headers = headerLine.split(',').map((h) => cleanStr(h).toLowerCase())
+
+      const itemIdx = headers.indexOf('itemstring')
+      const stackIdx = headers.indexOf('stacksize')
+      const qtyIdx = headers.indexOf('quantity')
+      const priceIdx = headers.indexOf('price')
+      const buyerIdx = headers.indexOf('otherplayer')
+      const timeIdx = headers.indexOf('time')
+      const sourceIdx = headers.indexOf('source')
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = cleanStr(lines[i])
+        if (!line) continue
+        const parts = line.split(',')
+        if (parts.length < 4) continue
+
+        const itemString = cleanStr(parts[itemIdx !== -1 ? itemIdx : 0])
+        const stackSize = parseInt(cleanStr(parts[stackIdx !== -1 ? stackIdx : 1]), 10) || 1
+        const rawQty = parseInt(cleanStr(parts[qtyIdx !== -1 ? qtyIdx : 2]), 10) || 1
+        const sellPriceCopper = parseInt(cleanStr(parts[priceIdx !== -1 ? priceIdx : 3]), 10) || 0
+        const buyer = cleanStr(parts[buyerIdx !== -1 ? buyerIdx : 4]) || undefined
+        const sellTimeTs = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 6]), 10) || 0
+        const source = cleanStr(parts[sourceIdx !== -1 ? sourceIdx : 7])
 
         if (!itemString || sellPriceCopper <= 0) continue
 
+        // Include Auction sales
+        if (source.toLowerCase() !== 'auction' && source !== '') continue
+
+        const totalQuantity = rawQty * stackSize
         const bId = extractBlizzardId(itemString)
         const itemName = bId ? `Item ${bId}` : itemString
 
@@ -135,10 +167,10 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
           buyPriceCopper = matchedBuy.priceCopper
         }
 
-        const netProfitCopper = (sellPriceCopper * quantity) - (buyPriceCopper * quantity)
+        const netProfitCopper = (sellPriceCopper * totalQuantity) - (buyPriceCopper * totalQuantity)
 
-        totalRevenue += sellPriceCopper * quantity
-        totalCost += buyPriceCopper * quantity
+        totalRevenue += sellPriceCopper * totalQuantity
+        totalCost += buyPriceCopper * totalQuantity
         totalProfit += netProfitCopper
 
         rawSales.push({
@@ -150,13 +182,13 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
           boughtAt: buysList && buysList[0] ? formatTs(buysList[0].timestamp) : undefined,
           sellTimeTs,
           soldAt: formatTs(sellTimeTs),
-          quantity,
+          quantity: totalQuantity,
           buyPriceCopper,
           sellPriceCopper,
           postsBeforeSale: 1,
           netProfitCopper,
-          buyer: buyer || undefined,
-          realm: undefined
+          buyer,
+          realm
         })
       }
     }
