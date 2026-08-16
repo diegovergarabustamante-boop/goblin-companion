@@ -1,6 +1,6 @@
 {
   "name": "goblin-companion",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Companion de escritorio para Auction-house-Profit: sincroniza SavedVariables de WoW con Django sin clicks manuales.",
   "type": "module",
   "main": "./out/main/index.js",

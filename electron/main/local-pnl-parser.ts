@@ -80,7 +80,8 @@ function cleanStr(str?: string): string {
 
 /**
  * Robust local Lua parser for TradeSkillMaster.lua accounting CSV data.
- * Replicates 100% of the Django backend companion_recent_sales and compute_resale_analytics logic.
+ * Replicates the Django backend companion_recent_sales and compute_resale_analytics logic,
+ * with bonus ID base key fallback for gear/transmog cost matching.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -238,7 +239,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
       let buyTimeTs: number | undefined
       let pastBuys: RawBuyRecord[] = []
 
-      // Check exact item match first (like Django)
+      // 1. Check exact item match first
       if (purchasesByExactItem[itemId]) {
         pastBuys = purchasesByExactItem[itemId].filter((p) => p.timeTsm <= saleTime)
         if (pastBuys.length > 0) {
@@ -247,10 +248,9 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         }
       }
 
-      // If no exact item match, check baseId (only if purchase is recent <= 90 days)
+      // 2. Fallback to baseId (matching bonus IDs for gear & transmog like Chromatic Sword)
       if (buyPriceCopper === 0 && purchasesByBase[baseId]) {
-        const ninetyDaysSec = 90 * 86400
-        pastBuys = purchasesByBase[baseId].filter((p) => p.timeTsm <= saleTime && (saleTime - p.timeTsm) <= ninetyDaysSec)
+        pastBuys = purchasesByBase[baseId].filter((p) => p.timeTsm <= saleTime)
         if (pastBuys.length > 0) {
           buyPriceCopper = pastBuys[0].priceCopper
           buyTimeTs = pastBuys[0].timeTsm
@@ -287,7 +287,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         sellPriceCopper,
         postsBeforeSale,
         netProfitCopper,
-        buyer: s.buyer, // Django returns s.buyer (customer who bought it from you on AH)
+        buyer: s.buyer, // Customer who bought it from you on AH
         realm: s.realm
       })
     }

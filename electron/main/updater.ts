@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { createWriteStream } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
@@ -261,20 +262,26 @@ export class UpdateManager {
       fileStream.end()
       this.isDownloading = false
 
-      appendActivity('success', `✅ Update v${versionStr} downloaded`, `Launching installer: ${tempPath}`)
+      appendActivity('success', `✅ Update v${versionStr} downloaded`, `Installing silently in background: ${tempPath}`)
       this.broadcastProgress({
         downloading: false,
         percent: 100,
         transferredBytes: totalLength,
         totalBytes: totalLength,
-        statusText: 'Launching installer…',
+        statusText: 'Installing & Restarting…',
         error: null
       })
 
-      // Launch the downloaded installer automatically
+      // Run NSIS installer silently in background (/S) and quit app so installer replaces files & restarts automatically
       setTimeout(() => {
-        void shell.openPath(tempPath)
-      }, 500)
+        try {
+          const child = spawn(tempPath, ['/S'], { detached: true, stdio: 'ignore' })
+          child.unref()
+        } catch {
+          void shell.openPath(tempPath)
+        }
+        app.quit()
+      }, 800)
 
       return { ok: true }
     } catch (err: unknown) {
