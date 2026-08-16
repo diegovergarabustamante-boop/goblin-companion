@@ -23,6 +23,16 @@ function extractBlizzardId(itemString: string): number | undefined {
 }
 
 /**
+ * Extracts base item key (e.g. "i:1604" from "i:1604::1:13617:1:9:30").
+ */
+function extractBaseKey(itemString: string): string {
+  if (!itemString) return ''
+  const m = itemString.match(/^(i:\d+)/i) || itemString.match(/^(p:\d+)/i) || itemString.match(/^(\d+)$/)
+  if (m) return m[1].toLowerCase()
+  return itemString.split(':')[0].toLowerCase()
+}
+
+/**
  * Formats a raw timestamp (in seconds) to ISO or local string.
  */
 function formatTs(ts?: number): string {
@@ -45,6 +55,7 @@ function cleanStr(str?: string): string {
  * Used as a fallback when Django backend is unreachable.
  * Dynamically parses column headers (itemString, stackSize, quantity, price, otherPlayer, player, time, source)
  * and supports escaped literal \n sequences across TSM 4 / TSM 5 saved variables.
+ * Also performs Base Item Matching across bonus IDs and item suffixes.
  */
 export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
   const luaPath = resolveLuaPath('accounting')
@@ -95,11 +106,19 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         const priceCopper = parseInt(cleanStr(parts[priceIdx !== -1 ? priceIdx : 3]), 10) || 0
         const time = parseInt(cleanStr(parts[timeIdx !== -1 ? timeIdx : 6]), 10) || 0
 
-        if (!itemString) continue
+        if (!itemString || priceCopper <= 0) continue
 
         const totalQty = rawQty * stackSize
+        const rec: RawBuyRecord = { itemString, priceCopper, quantity: totalQty, timestamp: time }
+        const baseKey = extractBaseKey(itemString)
+
         if (!buysByItem[itemString]) buysByItem[itemString] = []
-        buysByItem[itemString].push({ itemString, priceCopper, quantity: totalQty, timestamp: time })
+        buysByItem[itemString].push(rec)
+
+        if (baseKey && baseKey !== itemString) {
+          if (!buysByItem[baseKey]) buysByItem[baseKey] = []
+          buysByItem[baseKey].push(rec)
+        }
       }
     }
 
@@ -158,10 +177,11 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         const totalQuantity = rawQty * stackSize
         const bId = extractBlizzardId(itemString)
         const itemName = bId ? `Item ${bId}` : itemString
+        const baseKey = extractBaseKey(itemString)
 
-        // Attempt FIFO buy matching
+        // Attempt FIFO buy matching by exact string or base key
         let buyPriceCopper = 0
-        const buysList = buysByItem[itemString]
+        const buysList = buysByItem[itemString] || buysByItem[baseKey]
         if (buysList && buysList.length > 0) {
           const matchedBuy = buysList[buysList.length - 1]
           buyPriceCopper = matchedBuy.priceCopper
