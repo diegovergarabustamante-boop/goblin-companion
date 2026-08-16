@@ -25,13 +25,22 @@ function App(): JSX.Element {
   const [settings, setSettings] = useState<CompanionSettings | null>(null)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatusInfo | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateFeedback, setUpdateFeedback] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   const handleCheckUpdate = async (): Promise<void> => {
     setCheckingUpdate(true)
+    setUpdateFeedback(null)
     try {
       const res = await window.goblin.checkForUpdates()
       setUpdateStatus(res)
+      if (!res.hasUpdate && !res.error) {
+        setUpdateFeedback('Latest version')
+        setTimeout(() => setUpdateFeedback(null), 3000)
+      } else if (res.error) {
+        setUpdateFeedback('Check failed')
+        setTimeout(() => setUpdateFeedback(null), 3500)
+      }
     } finally {
       setCheckingUpdate(false)
     }
@@ -142,7 +151,7 @@ function App(): JSX.Element {
                 title="Check for software updates"
               >
                 <img src="./images/goblin_assets/search.png" alt="" style={{ width: 12, height: 12 }} />
-                <span>{checkingUpdate || updateStatus?.checking ? 'Checking…' : 'Check for updates'}</span>
+                <span>{checkingUpdate || updateStatus?.checking ? 'Checking…' : updateFeedback ? updateFeedback : 'Check for updates'}</span>
               </button>
             </>
           )}

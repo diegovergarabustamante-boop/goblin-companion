@@ -85,7 +85,42 @@ export class UpdateManager {
       })
 
       if (res.status === 404) {
-        // No releases found on GitHub yet — cleanly report up to date
+        // Fallback to checking /tags if no formal Release object exists on GitHub yet
+        try {
+          const tagsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/tags`
+          const tagsRes = await fetch(tagsUrl, {
+            headers: {
+              Accept: 'application/vnd.github.v3+json',
+              'User-Agent': `GoblinCompanion/${currentVer}`
+            }
+          })
+          if (tagsRes.ok) {
+            const tagsList = (await tagsRes.json()) as Array<{ name?: string }>
+            if (Array.isArray(tagsList) && tagsList.length > 0 && tagsList[0].name) {
+              const rawTag = tagsList[0].name
+              const latestVer = rawTag.replace(/^v/i, '')
+              const hasUpdate = isNewerVersion(currentVer, latestVer)
+              this.status = {
+                checking: false,
+                hasUpdate,
+                currentVersion: currentVer,
+                latestVersion: latestVer,
+                releaseUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/${rawTag}`,
+                downloadUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/${rawTag}`,
+                releaseNotes: null,
+                publishedAt: null,
+                error: null,
+                lastCheckedAt: new Date().toISOString()
+              }
+              this.broadcastStatus()
+              return this.getStatus()
+            }
+          }
+        } catch {
+          // Ignore tags fallback errors
+        }
+
+        // Default up to date if no tags found
         this.status.checking = false
         this.status.hasUpdate = false
         this.status.latestVersion = currentVer
