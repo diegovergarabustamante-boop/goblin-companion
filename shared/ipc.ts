@@ -29,7 +29,9 @@ export const IpcChannel = {
   GetUpdateStatus: 'updater:get-status',
   CheckUpdate: 'updater:check',
   UpdateStatusChanged: 'updater:status-changed',
-  OpenReleaseUrl: 'updater:open-release-url'
+  OpenReleaseUrl: 'updater:open-release-url',
+  StartUpdateDownload: 'updater:download',
+  UpdateProgressChanged: 'updater:progress'
 } as const
 
 export type AppTab = 'dashboard' | 'activity-log' | 'backups' | 'settings' | 'pnl'
@@ -45,5 +47,14 @@ export interface UpdateStatusInfo {
   publishedAt: string | null
   error: string | null
   lastCheckedAt: string | null
+}
+
+export interface UpdateDownloadProgress {
+  downloading: boolean
+  percent: number
+  transferredBytes: number
+  totalBytes: number
+  statusText: string
+  error?: string | null
 }
 

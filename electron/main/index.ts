@@ -289,6 +289,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.GetUpdateStatus, () => updateManager.getStatus())
   ipcMain.handle(IpcChannel.CheckUpdate, () => updateManager.checkForUpdates())
   ipcMain.handle(IpcChannel.OpenReleaseUrl, (_event, url?: string) => updateManager.openReleaseUrl(url))
+  ipcMain.handle(IpcChannel.StartUpdateDownload, () => updateManager.downloadUpdate())
 }
 
 const gotLock = app.requestSingleInstanceLock()

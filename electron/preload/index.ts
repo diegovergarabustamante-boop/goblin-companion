@@ -100,6 +100,9 @@ const goblinApi = {
 
   openReleaseUrl: (url?: string): Promise<void> => ipcRenderer.invoke(IpcChannel.OpenReleaseUrl, url),
 
+  startUpdateDownload: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.StartUpdateDownload),
+
   minimizeWindow: (): void => ipcRenderer.send(IpcChannel.WindowMinimize),
   closeWindow: (): void => ipcRenderer.send(IpcChannel.WindowClose),
 
@@ -125,6 +128,12 @@ const goblinApi = {
     const listener = (_event: unknown, updateStatus: UpdateStatusInfo): void => callback(updateStatus)
     ipcRenderer.on(IpcChannel.UpdateStatusChanged, listener)
     return () => ipcRenderer.removeListener(IpcChannel.UpdateStatusChanged, listener)
+  },
+
+  onUpdateProgress: (callback: (progress: import('../../shared/ipc').UpdateDownloadProgress) => void): (() => void) => {
+    const listener = (_event: unknown, progress: import('../../shared/ipc').UpdateDownloadProgress): void => callback(progress)
+    ipcRenderer.on(IpcChannel.UpdateProgressChanged, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.UpdateProgressChanged, listener)
   }
 }
 

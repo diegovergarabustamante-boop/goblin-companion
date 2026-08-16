@@ -26,6 +26,7 @@ function App(): JSX.Element {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatusInfo | null>(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [updateFeedback, setUpdateFeedback] = useState<string | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState<import('../shared/ipc').UpdateDownloadProgress | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   const handleCheckUpdate = async (): Promise<void> => {
@@ -46,6 +47,15 @@ function App(): JSX.Element {
     }
   }
 
+  const handleStartDownload = async (): Promise<void> => {
+    if (downloadProgress?.downloading) return
+    const res = await window.goblin.startUpdateDownload()
+    if (!res.ok && res.error) {
+      // Fallback to opening release URL in browser if direct stream fails
+      void window.goblin.openReleaseUrl(updateStatus?.downloadUrl || updateStatus?.releaseUrl || undefined)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     void Promise.all([window.goblin.getStatus(), window.goblin.getSettings(), window.goblin.getUpdateStatus()]).then(
@@ -57,14 +67,20 @@ function App(): JSX.Element {
         setLoaded(true)
       }
     )
+
+    const unsubStatus = window.goblin.onStatusChange((snap) => setStatus(snap))
+    const unsubUpdate = window.goblin.onUpdateStatusChange((info) => setUpdateStatus(info))
+    const unsubProgress = window.goblin.onUpdateProgress((prog) => setDownloadProgress(prog))
+
     return () => {
       cancelled = true
+      unsubStatus()
+      unsubUpdate()
+      unsubProgress()
     }
   }, [])
 
   useEffect(() => window.goblin.onNavigate((tab) => setActiveTab(tab)), [])
-  useEffect(() => window.goblin.onStatusChange((snapshot) => setStatus(snapshot)), [])
-  useEffect(() => window.goblin.onUpdateStatusChange((st) => setUpdateStatus(st)), [])
 
   // Loading state
   if (!loaded || !settings) {
@@ -132,11 +148,18 @@ function App(): JSX.Element {
             <button
               type="button"
               className="update-available-badge"
-              title={`New version v${updateStatus.latestVersion} available! Click to download.`}
-              onClick={() => void window.goblin.openReleaseUrl(updateStatus.downloadUrl || updateStatus.releaseUrl || undefined)}
+              disabled={Boolean(downloadProgress?.downloading)}
+              title={downloadProgress?.downloading ? downloadProgress.statusText : `Click to download & launch v${updateStatus.latestVersion} installer`}
+              onClick={() => void handleStartDownload()}
             >
               <span className="pulse-dot" />
-              <span>Update Available ({updateStatus.latestVersion})</span>
+              <span>
+                {downloadProgress?.downloading
+                  ? `Downloading v${updateStatus.latestVersion} (${downloadProgress.percent}%)`
+                  : downloadProgress?.percent === 100
+                    ? 'Launching Installer…'
+                    : `Update Available (v${updateStatus.latestVersion})`}
+              </span>
             </button>
           ) : (
             <>
@@ -157,8 +180,6 @@ function App(): JSX.Element {
           )}
         </div>
       </nav>
-
-
 
       <main className="tab-content">
         {activeTab === 'dashboard' && <Dashboard status={status} />}

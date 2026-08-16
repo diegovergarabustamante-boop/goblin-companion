@@ -1,6 +1,9 @@
+import { createWriteStream } from 'node:fs'
+import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
-import { IpcChannel, type UpdateStatusInfo } from '../../shared/ipc'
+import { IpcChannel, type UpdateDownloadProgress, type UpdateStatusInfo } from '../../shared/ipc'
 import { appendActivity } from './activity-log'
+import { getSettings } from './settings'
 
 const REPO_OWNER = 'diegovergarabustamante-boop'
 const REPO_NAME = 'goblin-companion'
@@ -44,6 +47,7 @@ export class UpdateManager {
     lastCheckedAt: null
   }
 
+  private isDownloading = false
   private timer: NodeJS.Timeout | null = null
 
   public init(): void {
@@ -88,54 +92,52 @@ export class UpdateManager {
       })
 
       if (res.status === 404) {
-        // Fallback to checking /tags if no formal Release object exists on GitHub yet
+        // Check Django server endpoint for version fallback if available
         try {
-          const tagsUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/tags`
-          const tagsRes = await fetch(tagsUrl, {
-            headers: {
-              Accept: 'application/vnd.github.v3+json',
-              'User-Agent': `GoblinCompanion/${currentVer}`
-            }
-          })
-          if (tagsRes.ok) {
-            const tagsList = (await tagsRes.json()) as Array<{ name?: string }>
-            if (Array.isArray(tagsList) && tagsList.length > 0 && tagsList[0].name) {
-              const rawTag = tagsList[0].name
-              const latestVer = rawTag.replace(/^v/i, '')
-              const hasUpdate = isNewerVersion(currentVer, latestVer)
-              this.status = {
-                checking: false,
-                hasUpdate,
-                currentVersion: currentVer,
-                latestVersion: latestVer,
-                releaseUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/${rawTag}`,
-                downloadUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/${rawTag}`,
-                releaseNotes: null,
-                publishedAt: null,
-                error: null,
-                lastCheckedAt: new Date().toISOString()
+          const settings = getSettings()
+          if (settings.djangoUrl) {
+            const djangoVerUrl = new URL('/api/companion/version/', settings.djangoUrl).toString()
+            const djangoRes = await fetch(djangoVerUrl, {
+              headers: { 'X-Companion-Token': settings.companionToken }
+            })
+            if (djangoRes.ok) {
+              const body = (await djangoRes.json().catch(() => null)) as { latest_version?: string; release_url?: string; download_url?: string } | null
+              if (body?.latest_version) {
+                const latestVer = body.latest_version.replace(/^v/i, '')
+                const hasUpdate = isNewerVersion(currentVer, latestVer)
+                this.status = {
+                  checking: false,
+                  hasUpdate,
+                  currentVersion: currentVer,
+                  latestVersion: latestVer,
+                  releaseUrl: body.release_url ?? `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`,
+                  downloadUrl: body.download_url ?? body.release_url ?? null,
+                  releaseNotes: null,
+                  publishedAt: null,
+                  error: null,
+                  lastCheckedAt: new Date().toISOString()
+                }
+                if (hasUpdate) {
+                  appendActivity('success', `✨ New version available (v${latestVer})`, `Current: v${currentVer} · Click update badge to install`)
+                } else {
+                  appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
+                }
+                this.broadcastStatus()
+                return this.getStatus()
               }
-
-              if (hasUpdate) {
-                appendActivity('success', `✨ New version available (v${latestVer})`, `Current: v${currentVer} · Click update badge to install`)
-              } else {
-                appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
-              }
-
-              this.broadcastStatus()
-              return this.getStatus()
             }
           }
         } catch {
-          // Ignore tags fallback errors
+          // Ignore django version fallback errors
         }
 
-        // Default up to date if no tags found
+        // GitHub API returned 404 because the repository is Private
         this.status.checking = false
         this.status.hasUpdate = false
         this.status.latestVersion = currentVer
         this.status.lastCheckedAt = new Date().toISOString()
-        appendActivity('info', '✅ Application up to date', `Version v${currentVer} is the latest`)
+        this.status.error = 'GitHub Repository is Private. Make repository Public on GitHub for automatic update detection.'
+        appendActivity('warn', '⚠️ GitHub API returned 404 (Private Repo)', 'Make repository Public on GitHub to enable update detection')
         this.broadcastStatus()
         return this.getStatus()
       }
@@ -195,6 +197,102 @@ export class UpdateManager {
     return this.getStatus()
   }
 
+  public async downloadUpdate(): Promise<{ ok: boolean; error?: string }> {
+    if (this.isDownloading) {
+      return { ok: false, error: 'Download already in progress' }
+    }
+
+    const downloadUrl = this.status.downloadUrl || this.status.releaseUrl
+    if (!downloadUrl) {
+      return { ok: false, error: 'No download URL available' }
+    }
+
+    this.isDownloading = true
+    const versionStr = this.status.latestVersion || 'latest'
+    appendActivity('info', `📥 Downloading update v${versionStr}…`, downloadUrl)
+
+    this.broadcastProgress({
+      downloading: true,
+      percent: 0,
+      transferredBytes: 0,
+      totalBytes: 0,
+      statusText: 'Starting download…',
+      error: null
+    })
+
+    try {
+      const res = await fetch(downloadUrl, {
+        headers: {
+          'User-Agent': `GoblinCompanion/${this.status.currentVersion}`
+        }
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: Failed to download installer`)
+      }
+
+      const totalLength = parseInt(res.headers.get('content-length') || '0', 10)
+      const tempPath = join(app.getPath('temp'), `GoblinCompanion-Setup-${versionStr}.exe`)
+      const fileStream = createWriteStream(tempPath)
+
+      if (res.body) {
+        const reader = res.body.getReader()
+        let downloadedBytes = 0
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value) {
+            fileStream.write(Buffer.from(value))
+            downloadedBytes += value.length
+            const percent = totalLength > 0 ? Math.round((downloadedBytes / totalLength) * 100) : 50
+            this.broadcastProgress({
+              downloading: true,
+              percent,
+              transferredBytes: downloadedBytes,
+              totalBytes: totalLength,
+              statusText: `Downloading v${versionStr} (${percent}%)`,
+              error: null
+            })
+          }
+        }
+      }
+
+      fileStream.end()
+      this.isDownloading = false
+
+      appendActivity('success', `✅ Update v${versionStr} downloaded`, `Launching installer: ${tempPath}`)
+      this.broadcastProgress({
+        downloading: false,
+        percent: 100,
+        transferredBytes: totalLength,
+        totalBytes: totalLength,
+        statusText: 'Launching installer…',
+        error: null
+      })
+
+      // Launch the downloaded installer automatically
+      setTimeout(() => {
+        void shell.openPath(tempPath)
+      }, 500)
+
+      return { ok: true }
+    } catch (err: unknown) {
+      this.isDownloading = false
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      appendActivity('error', '❌ Update download failed', errorMsg)
+      this.broadcastProgress({
+        downloading: false,
+        percent: 0,
+        transferredBytes: 0,
+        totalBytes: 0,
+        statusText: 'Download failed',
+        error: errorMsg
+      })
+      return { ok: false, error: errorMsg }
+    }
+  }
+
   public async openReleaseUrl(customUrl?: string): Promise<void> {
     const url = customUrl || this.status.releaseUrl || `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`
     await shell.openExternal(url)
@@ -205,6 +303,14 @@ export class UpdateManager {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
         win.webContents.send(IpcChannel.UpdateStatusChanged, snapshot)
+      }
+    }
+  }
+
+  private broadcastProgress(progress: UpdateDownloadProgress): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(IpcChannel.UpdateProgressChanged, progress)
       }
     }
   }
