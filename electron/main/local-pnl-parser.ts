@@ -229,12 +229,13 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         const itemName = bId ? `Item ${bId}` : itemString
         const baseKey = extractBaseKey(itemString)
 
-        // Attempt FIFO buy matching by exact string or base key
+        // Attempt FIFO buy matching by exact string or base key (prior to sale time)
         let buyPriceCopper = 0
         let buyTimeTs: number | undefined
         const buysList = buysByItem[itemString] || buysByItem[baseKey]
         if (buysList && buysList.length > 0) {
-          const matchedBuy = buysList[buysList.length - 1]
+          const priorBuys = buysList.filter((b) => b.timestamp <= sellTimeTs)
+          const matchedBuy = priorBuys.length > 0 ? priorBuys[priorBuys.length - 1] : buysList[0]
           buyPriceCopper = matchedBuy.priceCopper
           buyTimeTs = matchedBuy.timestamp
         }
@@ -244,7 +245,7 @@ export function parseLocalAccountingSales(limit = 100): RecentSalesResponseDto {
         // Calculate postsBeforeSale from expired and cancelled history
         const allPosts = postTimestampsByItem[itemString] || postTimestampsByItem[baseKey] || []
         let postsBeforeSale = 1 // 1 for the sale posting itself
-        const minTime = buyTimeTs || (sellTimeTs - (60 * 24 * 60 * 60)) // fallback to 60 days before sale
+        const minTime = buyTimeTs || (sellTimeTs - (30 * 24 * 60 * 60)) // fallback to 30 days before sale
 
         for (const ts of allPosts) {
           if (ts >= minTime && ts <= sellTimeTs) {
