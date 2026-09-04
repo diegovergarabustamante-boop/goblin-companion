@@ -1,8 +1,10 @@
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 
 import { appendActivity } from './activity-log'
 import { createRotatingBackup, listBackups } from './backup-manager'
-import { resolveLuaPath } from './paths'
+import { normalizeSavedVariablesPath, resolveLuaPath } from './paths'
 import { getSettings } from './settings'
 import { getSyncSnapshot, syncFile } from './sync-manager'
 import { isWatcherRunning } from './watcher'
@@ -37,7 +39,7 @@ function statusPayload(): Record<string, unknown> {
   return {
     ok: true,
     companion: true,
-    version: '0.1.0',
+    version: '0.3.3',
     tray_status: snap.trayStatus,
     auto_sync_enabled: snap.autoSyncEnabled,
     django_reachable: snap.djangoReachable,
@@ -91,6 +93,111 @@ async function handleSync(req: IncomingMessage, res: ServerResponse): Promise<vo
   sendJson(res, 200, { ok: true, results, status: statusPayload() })
 }
 
+/**
+ * Lee un .lua de SavedVariables en el PC local (donde corre la companion).
+ * El browser remoto (vía tunnel) usa esto en vez de pedir a Django que abra
+ * rutas del cliente — Django solo ve el filesystem del servidor.
+ *
+ * Body: { file_path?: string, kind?: 'inventory' | 'apphelper' | 'accounting' }
+ */
+async function handleRead(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  let filePath = ''
+  let kind = ''
+  try {
+    const raw = await readBody(req)
+    if (raw.trim()) {
+      const parsed = JSON.parse(raw) as { file_path?: string; path?: string; kind?: string }
+      filePath = (parsed.file_path || parsed.path || '').trim()
+      kind = (parsed.kind || '').trim().toLowerCase()
+    }
+  } catch {
+    // body vacío
+  }
+
+  const folder = normalizeSavedVariablesPath(getSettings().wowSavedVariablesPath)
+  if (!folder) {
+    sendJson(res, 400, {
+      success: false,
+      ok: false,
+      error: 'SavedVariables path no configurado en Companion Settings'
+    })
+    return
+  }
+
+  if (!filePath) {
+    if (kind === 'apphelper') {
+      filePath = join(folder, 'TradeSkillMaster_AppHelper.lua')
+    } else {
+      filePath = resolveLuaPath(kind === 'accounting' ? 'accounting' : 'inventory') || ''
+    }
+  }
+
+  if (!filePath) {
+    sendJson(res, 400, { success: false, ok: false, error: 'No file path provided' })
+    return
+  }
+
+  const resolved = resolve(normalize(filePath))
+  const folderResolved = resolve(normalize(folder))
+  const allowedPrefix = folderResolved.endsWith(sep) ? folderResolved : folderResolved + sep
+  if (resolved !== folderResolved && !resolved.startsWith(allowedPrefix)) {
+    sendJson(res, 403, {
+      success: false,
+      ok: false,
+      error: 'Solo se pueden leer archivos dentro de la carpeta SavedVariables configurada'
+    })
+    return
+  }
+
+  if (!resolved.toLowerCase().endsWith('.lua')) {
+    sendJson(res, 400, { success: false, ok: false, error: 'Only .lua files are allowed' })
+    return
+  }
+
+  if (!existsSync(resolved) || !statSync(resolved).isFile()) {
+    sendJson(res, 404, {
+      success: false,
+      ok: false,
+      error: `File not found at path: ${resolved}`
+    })
+    return
+  }
+
+  try {
+    const content = readFileSync(resolved, 'utf-8')
+    const fileSize = Buffer.byteLength(content, 'utf-8')
+    if (fileSize > 100 * 1024 * 1024) {
+      sendJson(res, 400, { success: false, ok: false, error: 'File too large (max 100MB)' })
+      return
+    }
+    const sizeMb = fileSize / (1024 * 1024)
+    const sizeFormatted =
+      sizeMb >= 1 ? `${sizeMb.toFixed(2)} MB` : `${(fileSize / 1024).toFixed(1)} KB`
+    const filename = basename(resolved)
+
+    sendJson(res, 200, {
+      success: true,
+      ok: true,
+      content,
+      filename,
+      file_path: resolved,
+      size: fileSize,
+      size_formatted: sizeFormatted,
+      // Sibling hint for AppHelper when reading main TSM
+      sibling_apphelper:
+        filename.toLowerCase() === 'tradeskillmaster.lua'
+          ? join(dirname(resolved), 'TradeSkillMaster_AppHelper.lua')
+          : null
+    })
+  } catch (error) {
+    sendJson(res, 500, {
+      success: false,
+      ok: false,
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+}
+
 export function startLocalServer(port = getSettings().localServerPort): void {
   stopLocalServer()
 
@@ -115,6 +222,11 @@ export function startLocalServer(port = getSettings().localServerPort): void {
 
     if (method === 'POST' && url.pathname === '/sync') {
       void handleSync(req, res)
+      return
+    }
+
+    if (method === 'POST' && url.pathname === '/read') {
+      void handleRead(req, res)
       return
     }
 
@@ -147,7 +259,7 @@ export function startLocalServer(port = getSettings().localServerPort): void {
       sendJson(res, 200, {
         ok: true,
         service: 'goblin-companion',
-        endpoints: ['/status', '/sync', '/backup']
+        endpoints: ['/status', '/sync', '/read', '/backup']
       })
       return
     }
@@ -160,7 +272,7 @@ export function startLocalServer(port = getSettings().localServerPort): void {
   })
 
   server.listen(port, '127.0.0.1', () => {
-    appendActivity('success', `Local server running on 127.0.0.1:${port}`, '/status · /sync · /backup')
+    appendActivity('success', `Local server running on 127.0.0.1:${port}`, '/status · /sync · /read · /backup')
   })
 }
 

@@ -7,7 +7,15 @@ const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const VERSION = pkg.version || '0.2.0'
 const TAG = `v${VERSION}`
 const RELEASE_NAME = `Goblin Companion ${TAG}`
-const BODY = `Release ${TAG} of Goblin Companion.`
+const BODY = `## Goblin Companion ${TAG}
+
+### Fixes
+- **Remote / tunnel users:** new local \`POST /read\` endpoint so the web UI reads SavedVariables from the client PC instead of asking Django to open remote paths
+- Prevents \`File not found\` / 404 on \`/api/load-tsm-from-path/\` when connected through a tunnel
+
+### Notes
+- Update recommended for anyone using Companion against a remote Django server
+`
 const ASSET_NAME = `GoblinCompanion-Setup-${VERSION}.exe`
 const EXE_PATH = join(process.cwd(), `release/${ASSET_NAME}`)
 
