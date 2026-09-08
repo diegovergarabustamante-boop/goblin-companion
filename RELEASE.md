@@ -1,100 +1,215 @@
-# 🚀 Release & Deployment Guide - Goblin Companion
+# Goblin Companion — AI / maintainer playbook
 
-This document provides step-by-step instructions for AI agents and developers to build, package, tag, and publish official GitHub releases for **Goblin Companion**.
+Use this file as the source of truth for **any AI agent** working in this repo: how to develop, commit, bump versions, build the Windows installer, and publish a GitHub Release.
 
----
-
-## 📋 Overview of Release Workflow
-
-Publishing a new version involves five key steps:
-
-1. **Version Bump**: Increment `version` in [`package.json`](file:///d:/Repos/goblin-companion/package.json).
-2. **Build Distribution**: Run `npm run dist` to create the NSIS Windows installer (`.exe`).
-3. **Git Commit & Tag**: Commit changes and tag the git commit with `vX.Y.Z`.
-4. **Git Push**: Push the `main` branch and tags to GitHub (`git push origin main --tags`).
-5. **GitHub Release**: Publish a formal release on GitHub with the installer `.exe` attached via `gh` CLI.
+Repo: `https://github.com/diegovergarabustamante-boop/goblin-companion`  
+Default branch: `main`  
+Target OS: Windows 10/11 (PowerShell)
 
 ---
 
-## 🛠️ Step-by-Step Execution Guide
+## 1. What this app is
 
-### 1. Bump the Package Version
-Update the `"version"` field in [`package.json`](file:///d:/Repos/goblin-companion/package.json):
-```json
-{
-  "name": "goblin-companion",
-  "version": "0.2.1"
-}
+Electron + React desktop companion for Auction-house-Profit. It watches WoW `SavedVariables`, syncs inventory/accounting to Django, writes TSM groups, and shows a local P&L dashboard (last 100 sales).
+
+Do not commit `release/`, `out/`, or `node_modules/` (they are gitignored). The installer is a **build artifact**, not source.
+
+---
+
+## 2. Standing rules for AI agents
+
+1. **Do not commit** unless the user explicitly asks (`commit`, `commitea`, etc.).
+2. **Do not push** unless the user asks to push **or** to publish a release.
+3. **Do not force-push**, amend published commits, skip hooks, or change git config.
+4. **Do not run `git add .`**. Stage only the files that belong to the change.
+5. Match existing commit style (English, conventional, optional version suffix on release commits):
+   - `feat(pnl): add Gold Lost card for last 100 losing sales (v0.3.4)`
+   - `feat(pnl): pin newly claimed sales at top with Latest first toggle`
+6. On this Windows machine, shell commands usually need full permissions (sandbox cannot isolate the filesystem).
+7. After UI changes, verify in the running Electron app when possible. There is no web browser for this app.
+
+---
+
+## 3. Local development
+
+```powershell
+npm install
+npm run icon
+npm run dev
 ```
 
-### 2. Run Typechecks & Build Binary
-Execute the complete packaging build command:
-```bash
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Electron + Vite HMR |
+| `npm run icon` | Regenerates `build/icon.png` and `build/icon.ico` |
+| `npm run typecheck` | `tsc` for main/preload and renderer |
+| `npm run build` | Production compile into `out/` |
+| `npm run dist` | Full Windows NSIS installer (see §5) |
+| `npm run dist:dir` | Unpacked folder only (`release/win-unpacked/`) |
+
+Typecheck both projects if you changed TS:
+
+```powershell
+npm run typecheck
+```
+
+---
+
+## 4. Version numbers (must stay in sync)
+
+Canonical version is `package.json` → `"version"`.
+
+Also update the local HTTP status payload:
+
+- `electron/main/local-server.ts` → `version: 'X.Y.Z'`
+
+`package-lock.json` top-level version is **stale** (`0.1.0`) and is **not** used for releases. Do not rely on it.
+
+Versioning in this repo is `0.Y.Z`. Bump **patch** (`0.3.5` → `0.3.6`) for features and fixes, matching recent history. Bump minor only if the user asks.
+
+Current shipped GitHub release at the time this guide was written: **v0.3.5**. Always read `package.json` and `git tag --sort=-v:refname` before bumping — do not copy an old version from this paragraph.
+
+---
+
+## 5. Build the installer
+
+```powershell
 npm run dist
 ```
-* **Script Pipeline**: `npm run icon` → `npm run typecheck` → `npm run build` → `electron-builder --win`.
-* **Output Artifact**: Generated in `release/GoblinCompanion-Setup-X.Y.Z.exe`.
 
-### 3. Stage, Commit, and Tag
-```bash
-git add .
-git commit -m "feat: release description (vX.Y.Z)"
+Pipeline: `icon` → `typecheck` → `electron-vite build` → `electron-builder --win`.
+
+Expected artifact:
+
+```
+release/GoblinCompanion-Setup-X.Y.Z.exe
+```
+
+`X.Y.Z` comes from `package.json`. If typecheck fails, **stop** and fix it. Do not publish a broken build.
+
+Build takes a few minutes. Signing via `signtool.exe` is normal on this machine.
+
+---
+
+## 6. Publish a GitHub release (full checklist)
+
+Only do this when the user asks to **rebuild and publish** / **release**.
+
+The in-app updater (`electron/main/updater.ts`) reads **GitHub Releases**, not git tags alone. A tag without a Release object + `.exe` asset is not enough.
+
+### 6.1 Bump version
+
+1. Set `"version"` in `package.json`.
+2. Set `version:` in `electron/main/local-server.ts` to the same string.
+
+### 6.2 Commit the source (not the installer)
+
+Stage the feature files **plus** the two version files. Message pattern:
+
+```text
+feat(pnl): short description (vX.Y.Z)
+```
+
+If the feature was already committed and you are only bumping for publish:
+
+```text
+release: vX.Y.Z
+```
+
+### 6.3 Build
+
+```powershell
+npm run dist
+```
+
+Confirm `release/GoblinCompanion-Setup-X.Y.Z.exe` exists.
+
+### 6.4 Tag and push `main`
+
+```powershell
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
-```
-
-### 4. Push to Remote GitHub Repository
-```bash
 git push origin main --tags
 ```
 
-### 5. Create & Publish Official GitHub Release
+Pushing `main` is required so GitHub has the commit the tag points at. Ask the user to approve the protected push if the environment blocks it.
 
-> [!IMPORTANT]
-> Simply pushing git tags is **not enough** for the in-app auto-updater (`updater.ts`) to serve binary downloads. You MUST publish a formal GitHub Release object with the `.exe` attached.
+### 6.5 Create the GitHub Release with the `.exe`
 
-#### Using GitHub CLI (`gh`)
-If `gh` CLI is installed:
-```bash
-gh release create vX.Y.Z "release/GoblinCompanion-Setup-X.Y.Z.exe" --title "Goblin Companion vX.Y.Z" --notes "Release notes summary..."
-```
+**Preferred:** GitHub CLI.
 
-If `gh` CLI is in the scratch folder (e.g. downloaded during agent runtime):
+If `gh` is on PATH:
+
 ```powershell
-& "C:\Users\diego\.gemini\antigravity\brain\<conversation-id>\scratch\bin\gh.exe" release create vX.Y.Z "release/GoblinCompanion-Setup-X.Y.Z.exe" --title "Goblin Companion vX.Y.Z" --notes "Release notes summary..."
+gh release create vX.Y.Z "release/GoblinCompanion-Setup-X.Y.Z.exe" --title "Goblin Companion vX.Y.Z" --notes @"
+## Goblin Companion vX.Y.Z
+
+### Features
+- ...
+
+### Fixes
+- ...
+
+### Notes
+- ...
+"@
 ```
 
-#### Manual Browser Upload (Fallback)
-1. Navigate to: `https://github.com/diegovergarabustamante-boop/goblin-companion/releases/new`
-2. Select tag `vX.Y.Z`.
-3. Set title to `Goblin Companion vX.Y.Z`.
-4. Attach `release/GoblinCompanion-Setup-X.Y.Z.exe`.
-5. Click **Publish release**.
+If `gh` is **not** on PATH, the known local binary used on this PC is:
+
+```powershell
+& "C:\Users\diego\.gemini\antigravity\brain\491b1bdc-74ee-4368-b3c1-ace7047fa44d\scratch\bin\gh.exe" release create vX.Y.Z "release/GoblinCompanion-Setup-X.Y.Z.exe" --title "Goblin Companion vX.Y.Z" --notes "..."
+```
+
+Search for `gh.exe` if that path moved. Uploading the installer can take ~1 minute.
+
+**Fallback script:** `node scripts/publish-release.mjs`  
+Warning: its `BODY` notes are **hardcoded and often stale**. Update them before using, or prefer `gh` with fresh notes.
+
+**Manual fallback:**  
+https://github.com/diegovergarabustamante-boop/goblin-companion/releases/new  
+Tag `vX.Y.Z`, title `Goblin Companion vX.Y.Z`, attach the `.exe`, publish.
+
+### 6.6 Return the URL
+
+Give the user:
+
+```
+https://github.com/diegovergarabustamante-boop/goblin-companion/releases/tag/vX.Y.Z
+```
 
 ---
 
-## 🔍 How In-App Auto-Updates Work (`updater.ts`)
+## 7. Auto-updater behavior (do not break this)
 
-1. The client queries `https://api.github.com/repos/diegovergarabustamante-boop/goblin-companion/releases/latest`.
-2. If `/releases/latest` returns `404` (e.g. no formal release object exists yet), it falls back to querying `https://api.github.com/repos/diegovergarabustamante-boop/goblin-companion/tags`.
-3. Compares `currentVersion` vs `latestVersion` using SemVer matching (`isNewerVersion`).
-4. If a newer version exists, the React UI (`App.tsx`) renders the green **Update Available (vX.Y.Z)** badge that links directly to the `.exe` download URL.
+1. App calls `https://api.github.com/repos/diegovergarabustamante-boop/goblin-companion/releases/latest`.
+2. If that 404s, it falls back to the tags API.
+3. SemVer compare vs the version baked into the running app (`package.json` at build time).
+4. UI shows **Update Available (vX.Y.Z)** and can download `GoblinCompanion-Setup-X.Y.Z.exe`.
+
+The asset **file name must stay** `GoblinCompanion-Setup-${version}.exe` (`electron-builder.yml`).
 
 ---
 
-## ⚡ Quick One-Liner Script for AI Agents
+## 8. Typical “commit only” vs “release” requests
 
-When executing a full release for version `0.2.2`:
+| User says | Do this |
+| --- | --- |
+| `commit` | Stage relevant files, commit, **do not** bump version, **do not** push |
+| `push` | `git push origin main` (no tag unless asked) |
+| `rebuildear y publicar` / `release` | Full §6: bump, commit, `npm run dist`, tag, push `--tags`, `gh release create` |
+
+Unreleased commits can sit on `main` locally. Publishing is a **separate** step from committing features.
+
+---
+
+## 9. Quick copy-paste (replace X.Y.Z)
 
 ```powershell
-# 1. Typecheck & Build
+# After package.json + local-server.ts are already bumped and committed:
 npm run dist
-
-# 2. Git Commit & Tag
-git add .
-git commit -m "release: v0.2.2"
-git tag -a v0.2.2 -m "Release v0.2.2"
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin main --tags
-
-# 3. GitHub Release Creation via gh.exe
-& "$HOME\.gemini\antigravity\brain\491b1bdc-74ee-4368-b3c1-ace7047fa44d\scratch\bin\gh.exe" release create v0.2.2 "release/GoblinCompanion-Setup-0.2.2.exe" --title "Goblin Companion v0.2.2" --notes "Release v0.2.2"
+gh release create vX.Y.Z "release/GoblinCompanion-Setup-X.Y.Z.exe" --title "Goblin Companion vX.Y.Z" --notes "Release vX.Y.Z"
 ```
+
+If `gh` is missing, use the `gh.exe` path in §6.5.

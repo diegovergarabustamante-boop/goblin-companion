@@ -80,6 +80,8 @@ npm run dev
 | `npm run dist` | Builds production bundle and generates NSIS Windows Installer (`release/GoblinCompanion-Setup-*.exe`) |
 | `npm run dist:dir` | Packages unpacked executable folder (`release/win-unpacked/`) |
 
+**Shipping a GitHub Release** (version bump, `npm run dist`, tag, push, attach `.exe`): see **[RELEASE.md](./RELEASE.md)**. That file is the playbook for humans and any AI agent.
+
 ---
 
 ## 📁 Repository Structure
