@@ -192,20 +192,211 @@ const DEFAULT_COLUMNS: PnLColumnDef[] = [
 ]
 
 const STORAGE_KEY = 'goblin_pnl_columns_config'
+const CARDS_STORAGE_KEY = 'goblin_pnl_cards_config'
+
+function mergeSavedConfig<T extends { id: string }>(raw: string | null, defaults: T[]): T[] {
+  if (!raw) return defaults
+  const parsed = JSON.parse(raw) as T[]
+  if (!Array.isArray(parsed) || parsed.length === 0) return defaults
+  const savedIds = new Set(parsed.map((c) => c.id))
+  const defaultIds = new Set(defaults.map((c) => c.id))
+  const kept = parsed.filter((c) => defaultIds.has(c.id))
+  const missing = defaults.filter((c) => !savedIds.has(c.id))
+  return [...kept, ...missing]
+}
 
 function loadSavedColumns(): PnLColumnDef[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEFAULT_COLUMNS
-    const parsed = JSON.parse(raw) as PnLColumnDef[]
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_COLUMNS
-    // Ensure all default columns exist even if saved config is outdated
-    const savedIds = new Set(parsed.map((c) => c.id))
-    const missing = DEFAULT_COLUMNS.filter((c) => !savedIds.has(c.id))
-    return [...parsed, ...missing]
+    return mergeSavedConfig(localStorage.getItem(STORAGE_KEY), DEFAULT_COLUMNS)
   } catch {
     return DEFAULT_COLUMNS
   }
+}
+
+export interface PnLCardDef {
+  id: 'revenue' | 'cost' | 'net' | 'goldGained' | 'goldLost' | 'sales'
+  label: string
+  visible: boolean
+}
+
+const DEFAULT_CARDS: PnLCardDef[] = [
+  { id: 'revenue', label: 'Total Revenue', visible: true },
+  { id: 'cost', label: 'Total Cost', visible: true },
+  { id: 'net', label: 'Net Profit / Loss', visible: true },
+  { id: 'goldGained', label: 'Gold Gained', visible: true },
+  { id: 'goldLost', label: 'Gold Lost', visible: true },
+  { id: 'sales', label: 'Sales Records', visible: true }
+]
+
+function loadSavedCards(): PnLCardDef[] {
+  try {
+    return mergeSavedConfig(localStorage.getItem(CARDS_STORAGE_KEY), DEFAULT_CARDS)
+  } catch {
+    return DEFAULT_CARDS
+  }
+}
+
+function SettingsPopover<T extends { id: string; label: string; visible: boolean }>({
+  buttonLabel,
+  title,
+  items,
+  open,
+  align = 'right',
+  onToggleOpen,
+  onToggle,
+  onMove,
+  onReset,
+  onClose
+}: {
+  buttonLabel: string
+  title: string
+  items: T[]
+  open: boolean
+  align?: 'left' | 'right'
+  onToggleOpen: () => void
+  onToggle: (id: T['id']) => void
+  onMove: (index: number, direction: 'up' | 'down') => void
+  onReset: () => void
+  onClose: () => void
+}) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="btn btn--secondary"
+        onClick={onToggleOpen}
+        style={{
+          padding: '8px 12px',
+          fontSize: '0.85em',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          borderColor: open ? '#fbbf24' : undefined,
+          background: open ? 'rgba(251,191,36,0.15)' : undefined
+        }}
+        title={`Configure and reorder ${buttonLabel.toLowerCase()}`}
+      >
+        <span>⚙️ {buttonLabel}</span>
+        <span style={{ fontSize: '0.7em', opacity: 0.8 }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div
+          className="glass-panel"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: align === 'left' ? 0 : undefined,
+            right: align === 'right' ? 0 : undefined,
+            zIndex: 100,
+            width: 300,
+            padding: '14px 16px',
+            background: 'rgba(15, 10, 5, 0.96)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(251, 191, 36, 0.4)',
+            borderRadius: 10,
+            boxShadow: '0 12px 30px rgba(0,0,0,0.85)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(251,191,36,0.2)' }}>
+            <div style={{ fontWeight: 700, color: '#fbbf24', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>⚙️</span> {title}
+            </div>
+            <button
+              type="button"
+              onClick={onReset}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78em', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Reset Default
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
+            {items.map((item, idx) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 8px',
+                  borderRadius: 6,
+                  background: item.visible ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85em', color: item.visible ? '#f8fafc' : '#64748b', flex: 1, userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={item.visible}
+                    onChange={() => onToggle(item.id)}
+                    style={{ accentColor: '#fbbf24', cursor: 'pointer' }}
+                  />
+                  <span>{item.label}</span>
+                </label>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => onMove(idx, 'up')}
+                    disabled={idx === 0}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      borderRadius: 4,
+                      color: idx === 0 ? '#475569' : '#fbbf24',
+                      width: 24,
+                      height: 24,
+                      fontSize: '0.75em',
+                      cursor: idx === 0 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onMove(idx, 'down')}
+                    disabled={idx === items.length - 1}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: 'none',
+                      borderRadius: 4,
+                      color: idx === items.length - 1 ? '#475569' : '#fbbf24',
+                      width: 24,
+                      height: 24,
+                      fontSize: '0.75em',
+                      cursor: idx === items.length - 1 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'right' }}>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={onClose}
+              style={{ padding: '4px 12px', fontSize: '0.8em' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Deterministic Distinct Color Generator ─────────────────────────────────
@@ -241,6 +432,10 @@ export function PnLSalesTable() {
   const [columns, setColumns] = useState<PnLColumnDef[]>(loadSavedColumns)
   const [showColMenu, setShowColMenu] = useState(false)
 
+  // Card customization state
+  const [cards, setCards] = useState<PnLCardDef[]>(loadSavedCards)
+  const [showCardMenu, setShowCardMenu] = useState(false)
+
   // Save column config on change
   const updateColumns = (newCols: PnLColumnDef[]) => {
     setColumns(newCols)
@@ -270,6 +465,33 @@ export function PnLSalesTable() {
 
   const resetColumns = () => {
     updateColumns(DEFAULT_COLUMNS)
+  }
+
+  const updateCards = (newCards: PnLCardDef[]) => {
+    setCards(newCards)
+    try {
+      localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(newCards))
+    } catch {
+      // Ignore storage write errors
+    }
+  }
+
+  const toggleCardVisibility = (id: PnLCardDef['id']) => {
+    updateCards(cards.map((card) => (card.id === id ? { ...card, visible: !card.visible } : card)))
+  }
+
+  const moveCard = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= cards.length) return
+    const updated = [...cards]
+    const temp = updated[index]
+    updated[index] = updated[targetIndex]
+    updated[targetIndex] = temp
+    updateCards(updated)
+  }
+
+  const resetCards = () => {
+    updateCards(DEFAULT_CARDS)
   }
 
   const loadSales = async () => {
@@ -317,6 +539,9 @@ export function PnLSalesTable() {
 
   const losingSales = sales.filter((s) => s.netProfitCopper < 0)
   const goldLostCopper = losingSales.reduce((sum, s) => sum + s.netProfitCopper, 0)
+  const winningSales = sales.filter((s) => s.netProfitCopper > 0)
+  const goldGainedCopper = winningSales.reduce((sum, s) => sum + s.netProfitCopper, 0)
+  const visibleCards = cards.filter((c) => c.visible)
 
   // Visible columns & scaling widths
   const visibleCols = columns.filter((c) => c.visible)
@@ -439,6 +664,106 @@ export function PnLSalesTable() {
     }
   }
 
+  const cardShell = (style: React.CSSProperties, children: React.ReactNode) => (
+    <div
+      className="glass-panel"
+      style={{
+        padding: '14px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        minWidth: 0,
+        ...style
+      }}
+    >
+      {children}
+    </div>
+  )
+
+  const renderSummaryCard = (cardId: PnLCardDef['id']) => {
+    switch (cardId) {
+      case 'revenue':
+        return cardShell(
+          { background: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,78,59,0.2))', border: '1px solid rgba(16,185,129,0.3)' },
+          <>
+            <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Revenue</div>
+              <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalRev} /></div>
+            </div>
+          </>
+        )
+      case 'cost':
+        return cardShell(
+          { background: 'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(120,53,15,0.2))', border: '1px solid rgba(245,158,11,0.3)' },
+          <>
+            <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Cost</div>
+              <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalCost} /></div>
+            </div>
+          </>
+        )
+      case 'net':
+        return cardShell(
+          {
+            background: totalProfit >= 0
+              ? 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(4,120,87,0.25))'
+              : 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))',
+            border: totalProfit >= 0 ? '1.5px solid rgba(52,211,153,0.4)' : '1.5px solid rgba(248,113,113,0.4)'
+          },
+          <>
+            <img src={totalProfit >= 0 ? './images/goblin_assets/success.png' : './images/goblin_assets/clear.png'} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Net Profit / Loss</div>
+              <div style={{ fontSize: '1.05em', marginTop: 2, color: totalProfit >= 0 ? '#4ade80' : '#f87171' }}><CoinBadge copper={totalProfit} /></div>
+            </div>
+          </>
+        )
+      case 'goldGained':
+        return cardShell(
+          { background: 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(4,120,87,0.25))', border: '1px solid rgba(52,211,153,0.4)' },
+          <>
+            <img src="./images/goblin_assets/success.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Gold Gained</div>
+              <div style={{ fontSize: '1.05em', marginTop: 2, color: '#4ade80' }}><CoinBadge copper={goldGainedCopper} /></div>
+              <div style={{ fontSize: '0.72em', color: '#94a3b8', marginTop: 2 }}>
+                {winningSales.length} winning {winningSales.length === 1 ? 'sale' : 'sales'} · last {sales.length || 100}
+              </div>
+            </div>
+          </>
+        )
+      case 'goldLost':
+        return cardShell(
+          { background: 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))', border: '1px solid rgba(248,113,113,0.4)' },
+          <>
+            <img src="./images/goblin_assets/clear.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Gold Lost</div>
+              <div style={{ fontSize: '1.05em', marginTop: 2, color: '#f87171' }}><CoinBadge copper={Math.abs(goldLostCopper)} /></div>
+              <div style={{ fontSize: '0.72em', color: '#94a3b8', marginTop: 2 }}>
+                {losingSales.length} losing {losingSales.length === 1 ? 'sale' : 'sales'} · last {sales.length || 100}
+              </div>
+            </div>
+          </>
+        )
+      case 'sales':
+        return cardShell(
+          { background: 'linear-gradient(135deg,rgba(168,85,247,0.12),rgba(88,28,135,0.2))', border: '1px solid rgba(168,85,247,0.3)' },
+          <>
+            <img src="./images/goblin_assets/icon_inventory.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Sales Records</div>
+              <div style={{ fontSize: '1.2em', fontWeight: 700, color: '#c084fc', marginTop: 2 }}>{sales.length} items</div>
+            </div>
+          </>
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -464,45 +789,36 @@ export function PnLSalesTable() {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
-        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,78,59,0.2))', border: '1px solid rgba(16,185,129,0.3)' }}>
-          <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Revenue</div>
-            <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalRev} /></div>
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <SettingsPopover
+            buttonLabel="Cards"
+            title="Card Settings"
+            items={cards}
+            open={showCardMenu}
+            align="right"
+            onToggleOpen={() => {
+              setShowCardMenu(!showCardMenu)
+              setShowColMenu(false)
+            }}
+            onToggle={toggleCardVisibility}
+            onMove={moveCard}
+            onReset={resetCards}
+            onClose={() => setShowCardMenu(false)}
+          />
         </div>
-        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(120,53,15,0.2))', border: '1px solid rgba(245,158,11,0.3)' }}>
-          <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total Cost</div>
-            <div style={{ fontSize: '1.05em', marginTop: 2 }}><CoinBadge copper={totalCost} /></div>
+
+        {visibleCards.length === 0 ? (
+          <div className="glass-panel" style={{ padding: 20, textAlign: 'center', color: '#fbbf24' }}>
+            All summary cards are currently hidden. Click <strong>⚙️ Cards</strong> to enable them.
           </div>
-        </div>
-        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: totalProfit >= 0 ? 'linear-gradient(135deg,rgba(52,211,153,0.15),rgba(4,120,87,0.25))' : 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))', border: totalProfit >= 0 ? '1.5px solid rgba(52,211,153,0.4)' : '1.5px solid rgba(248,113,113,0.4)' }}>
-          <img src={totalProfit >= 0 ? './images/goblin_assets/success.png' : './images/goblin_assets/clear.png'} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Net Profit / Loss</div>
-            <div style={{ fontSize: '1.05em', marginTop: 2, color: totalProfit >= 0 ? '#4ade80' : '#f87171' }}><CoinBadge copper={totalProfit} /></div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
+            {visibleCards.map((card) => (
+              <React.Fragment key={card.id}>{renderSummaryCard(card.id)}</React.Fragment>
+            ))}
           </div>
-        </div>
-        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))', border: '1px solid rgba(248,113,113,0.4)' }}>
-          <img src="./images/goblin_assets/clear.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Gold Lost</div>
-            <div style={{ fontSize: '1.05em', marginTop: 2, color: '#f87171' }}><CoinBadge copper={Math.abs(goldLostCopper)} /></div>
-            <div style={{ fontSize: '0.72em', color: '#94a3b8', marginTop: 2 }}>
-              {losingSales.length} losing {losingSales.length === 1 ? 'sale' : 'sales'} · last {sales.length || 100}
-            </div>
-          </div>
-        </div>
-        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(168,85,247,0.12),rgba(88,28,135,0.2))', border: '1px solid rgba(168,85,247,0.3)' }}>
-          <img src="./images/goblin_assets/icon_inventory.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Sales Records</div>
-            <div style={{ fontSize: '1.2em', fontWeight: 700, color: '#c084fc', marginTop: 2 }}>{sales.length} items</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Table */}
@@ -518,142 +834,21 @@ export function PnLSalesTable() {
               style={{ padding: '8px 14px', fontSize: '0.88em', flex: 1 }}
             />
 
-            {/* Column Customizer Button & Popover Menu */}
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => setShowColMenu(!showColMenu)}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '0.85em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  borderColor: showColMenu ? '#fbbf24' : undefined,
-                  background: showColMenu ? 'rgba(251,191,36,0.15)' : undefined
-                }}
-                title="Configure and reorder table columns"
-              >
-                <span>⚙️ Columns</span>
-                <span style={{ fontSize: '0.7em', opacity: 0.8 }}>{showColMenu ? '▲' : '▼'}</span>
-              </button>
-
-              {showColMenu && (
-                <div
-                  className="glass-panel"
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    left: 0,
-                    zIndex: 100,
-                    width: 300,
-                    padding: '14px 16px',
-                    background: 'rgba(15, 10, 5, 0.96)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(251, 191, 36, 0.4)',
-                    borderRadius: 10,
-                    boxShadow: '0 12px 30px rgba(0,0,0,0.85)'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(251,191,36,0.2)' }}>
-                    <div style={{ fontWeight: 700, color: '#fbbf24', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>⚙️</span> Column Settings
-                    </div>
-                    <button
-                      type="button"
-                      onClick={resetColumns}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.78em', cursor: 'pointer', textDecoration: 'underline' }}
-                    >
-                      Reset Default
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
-                    {columns.map((col, idx) => (
-                      <div
-                        key={col.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '6px 8px',
-                          borderRadius: 6,
-                          background: col.visible ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)'
-                        }}
-                      >
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85em', color: col.visible ? '#f8fafc' : '#64748b', flex: 1, userSelect: 'none' }}>
-                          <input
-                            type="checkbox"
-                            checked={col.visible}
-                            onChange={() => toggleColumnVisibility(col.id)}
-                            style={{ accentColor: '#fbbf24', cursor: 'pointer' }}
-                          />
-                          <span>{col.label}</span>
-                        </label>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <button
-                            type="button"
-                            onClick={() => moveColumn(idx, 'up')}
-                            disabled={idx === 0}
-                            style={{
-                              background: 'rgba(255,255,255,0.06)',
-                              border: 'none',
-                              borderRadius: 4,
-                              color: idx === 0 ? '#475569' : '#fbbf24',
-                              width: 24,
-                              height: 24,
-                              fontSize: '0.75em',
-                              cursor: idx === 0 ? 'not-allowed' : 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            title="Move column up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveColumn(idx, 'down')}
-                            disabled={idx === columns.length - 1}
-                            style={{
-                              background: 'rgba(255,255,255,0.06)',
-                              border: 'none',
-                              borderRadius: 4,
-                              color: idx === columns.length - 1 ? '#475569' : '#fbbf24',
-                              width: 24,
-                              height: 24,
-                              fontSize: '0.75em',
-                              cursor: idx === columns.length - 1 ? 'not-allowed' : 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            title="Move column down"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)', textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      onClick={() => setShowColMenu(false)}
-                      style={{ padding: '4px 12px', fontSize: '0.8em' }}
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <SettingsPopover
+              buttonLabel="Columns"
+              title="Column Settings"
+              items={columns}
+              open={showColMenu}
+              align="left"
+              onToggleOpen={() => {
+                setShowColMenu(!showColMenu)
+                setShowCardMenu(false)
+              }}
+              onToggle={toggleColumnVisibility}
+              onMove={moveColumn}
+              onReset={resetColumns}
+              onClose={() => setShowColMenu(false)}
+            />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
