@@ -258,6 +258,9 @@ function saleTime(s: RecentSaleItemDto): number {
   return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000)
 }
 
+/** Sales within this window of the newest sell time count as the latest claimed batch. */
+const NEWEST_CLUSTER_SECONDS = 45 * 60
+
 function loadLastSeenFingerprints(): Set<string> {
   try {
     const raw = localStorage.getItem(LAST_SEEN_IDS_KEY)
@@ -602,14 +605,16 @@ export function PnLSalesTable() {
     return matchesName || matchesBuyer || matchesRealm
   })
 
-  const displayedSales = sortLatest
-    ? [...filteredSales].sort((a, b) => {
-        const aNew = newSaleKeys.has(saleFingerprint(a)) ? 1 : 0
-        const bNew = newSaleKeys.has(saleFingerprint(b)) ? 1 : 0
-        if (aNew !== bNew) return bNew - aNew
-        return saleTime(b) - saleTime(a)
-      })
-    : filteredSales
+  const newestSellTs = filteredSales.reduce((max, sale) => Math.max(max, saleTime(sale)), 0)
+
+  const displayedSales = [...filteredSales].sort((a, b) => {
+    const byDate = saleTime(b) - saleTime(a)
+    if (!sortLatest) return -byDate
+    const aNew = newSaleKeys.has(saleFingerprint(a)) ? 1 : 0
+    const bNew = newSaleKeys.has(saleFingerprint(b)) ? 1 : 0
+    if (aNew !== bNew) return bNew - aNew
+    return byDate
+  })
 
   const losingSales = sales.filter((s) => s.netProfitCopper < 0)
   const goldLostCopper = losingSales.reduce((sum, s) => sum + s.netProfitCopper, 0)
@@ -635,12 +640,35 @@ export function PnLSalesTable() {
     textOverflow: 'ellipsis'
   })
 
-  const tdStyle = (textAlign: 'left' | 'center' | 'right', isLast = false): React.CSSProperties => ({
-    padding: '10px 8px', textAlign,
-    borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.08)',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-  })
+  const tdStyle = (
+    textAlign: 'left' | 'center' | 'right',
+    isLast = false,
+    isRecent = false,
+    isFirst = false
+  ): React.CSSProperties => {
+    if (isRecent) {
+      return {
+        padding: '10px 8px',
+        textAlign,
+        borderTop: '2px solid #38bdf8',
+        borderBottom: '2px solid #38bdf8',
+        borderLeft: isFirst ? '2px solid #38bdf8' : '1px solid #38bdf8',
+        borderRight: isLast ? '2px solid #38bdf8' : '1px solid #38bdf8',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }
+    return {
+      padding: '10px 8px',
+      textAlign,
+      borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.08)',
+      borderBottom: '1px solid rgba(255,255,255,0.04)',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }
 
   // Render individual cell by column ID
   const renderTableCell = (
@@ -649,12 +677,15 @@ export function PnLSalesTable() {
     isLast: boolean,
     bId: number | null,
     isProfit: boolean,
-    isNew: boolean
+    isNew: boolean,
+    isRecent: boolean,
+    isFirst: boolean
   ) => {
+    const cell = tdStyle('center', isLast, isRecent, isFirst)
     switch (colId) {
       case 'item':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible' }}>
+          <td key={colId} style={{ ...cell, overflow: 'visible' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0 }}>
               {isNew ? (
                 <span
@@ -682,7 +713,7 @@ export function PnLSalesTable() {
           <td
             key={colId}
             style={{
-              ...tdStyle('center', isLast),
+              ...cell,
               color: sale.buyer ? stringToColor(sale.buyer) : '#64748b',
               fontWeight: 600
             }}
@@ -696,7 +727,7 @@ export function PnLSalesTable() {
           <td
             key={colId}
             style={{
-              ...tdStyle('center', isLast),
+              ...cell,
               color: sale.realm ? stringToColor(sale.realm) : '#64748b',
               fontWeight: 600
             }}
@@ -707,19 +738,19 @@ export function PnLSalesTable() {
         )
       case 'buyDate':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), color: '#94a3b8', fontSize: '0.85em' }}>
+          <td key={colId} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
             {formatLocalDateTime(sale.buyTimeTs, sale.boughtAt)}
           </td>
         )
       case 'sellDate':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), color: '#94a3b8', fontSize: '0.85em' }}>
+          <td key={colId} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
             {formatLocalDateTime(sale.sellTimeTs, sale.soldAt)}
           </td>
         )
       case 'posts':
         return (
-          <td key={colId} style={tdStyle('center', isLast)}>
+          <td key={colId} style={cell}>
             <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: '0.82em', fontWeight: 700, background: sale.postsBeforeSale > 5 ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)', color: sale.postsBeforeSale > 5 ? '#fbbf24' : '#60a5fa', border: sale.postsBeforeSale > 5 ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(96,165,250,0.3)' }}>
               {sale.postsBeforeSale} {sale.postsBeforeSale === 1 ? 'post' : 'posts'}
             </span>
@@ -727,13 +758,13 @@ export function PnLSalesTable() {
         )
       case 'buyPrice':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible', whiteSpace: 'nowrap' }}>
+          <td key={colId} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
             <CoinBadge copper={sale.buyPriceCopper} fontSize="1em" />
           </td>
         )
       case 'sellPrice':
         return (
-          <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible', whiteSpace: 'nowrap' }}>
+          <td key={colId} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
             <CoinBadge copper={sale.sellPriceCopper} fontSize="1em" />
           </td>
         )
@@ -742,7 +773,7 @@ export function PnLSalesTable() {
           <td
             key={colId}
             style={{
-              ...tdStyle('center', isLast),
+              ...cell,
               overflow: 'visible',
               whiteSpace: 'nowrap',
               fontWeight: 700,
@@ -947,21 +978,27 @@ export function PnLSalesTable() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>Showing {displayedSales.length} of {sales.length} recent sales</span>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={toggleSortLatest}
-              title="When enabled, newly claimed sales appear first, then the rest by sell date"
-              style={{
-                padding: '8px 12px',
-                fontSize: '0.85em',
-                borderColor: sortLatest ? '#fbbf24' : undefined,
-                background: sortLatest ? 'rgba(251,191,36,0.15)' : undefined,
-                color: sortLatest ? '#fbbf24' : undefined
-              }}
-            >
-              {sortLatest ? '● Latest first' : '○ Latest first'}
-            </button>
+            <div className="pnl-latest-wrap">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={toggleSortLatest}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '0.85em',
+                  borderColor: sortLatest ? '#fbbf24' : undefined,
+                  background: sortLatest ? 'rgba(251,191,36,0.15)' : undefined,
+                  color: sortLatest ? '#fbbf24' : undefined
+                }}
+              >
+                {sortLatest ? '● Latest first' : '○ Latest first'}
+              </button>
+              <div className="pnl-latest-tooltip" role="tooltip">
+                Sorts by sell date: newest at the top, oldest at the bottom when turned off.
+                Cyan borders mark only the most recently sold batch (for example the last
+                auctions you just claimed from the mailbox), not every sale from the same day.
+              </div>
+            </div>
             <button type="button" className="btn btn--secondary" onClick={() => void loadSales()} disabled={loading} style={{ padding: '8px 14px', fontSize: '0.85em' }}>
               <img src="./images/goblin_assets/sync.png" alt="" style={{ width: 16, height: 16, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
               <span>Refresh</span>
@@ -987,7 +1024,7 @@ export function PnLSalesTable() {
           </div>
         ) : (
           <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(251,191,36,0.25)', overflowY: 'visible' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88em', tableLayout: 'fixed' }}>
+            <table className="pnl-sales-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.88em', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: 'rgba(30,22,8,0.95)' }}>
                   {visibleCols.map((col, i) => (
@@ -1004,35 +1041,37 @@ export function PnLSalesTable() {
               <tbody>
                 {displayedSales.map((sale, index) => {
                   const isProfit = sale.netProfitCopper >= 0
-                  const isNew = sortLatest && newSaleKeys.has(saleFingerprint(sale))
+                  const isClaimedNew = sortLatest && newSaleKeys.has(saleFingerprint(sale))
+                  const isNewestBatch = sortLatest && newestSellTs > 0 && saleTime(sale) > 0 && (newestSellTs - saleTime(sale)) <= NEWEST_CLUSTER_SECONDS
+                  const isRecent = isClaimedNew || isNewestBatch
                   const bId = sale.blizzardId ||
                     (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
-                  const rowBg = isNew
-                    ? 'rgba(56,189,248,0.14)'
-                    : index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
-                  const rowShadow = isNew
-                    ? 'inset 0 0 0 1.5px rgba(56,189,248,0.9), inset 4px 0 0 #38bdf8'
-                    : 'none'
+                  const rowBg = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
 
                   return (
                     <tr
                       key={sale.id || index}
-                      title={isNew ? 'Newly claimed since last refresh' : undefined}
-                      style={{
-                        background: rowBg,
-                        boxShadow: rowShadow,
-                        transition: 'background 0.15s ease, box-shadow 0.15s ease'
-                      }}
+                      className={isRecent ? 'pnl-row-recent' : undefined}
+                      title={isClaimedNew ? 'Newly claimed since last refresh' : isNewestBatch ? 'Most recently sold' : undefined}
+                      style={{ background: rowBg, transition: 'background 0.15s ease' }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.background = isNew ? 'rgba(56,189,248,0.22)' : 'rgba(251,191,36,0.08)'
+                        e.currentTarget.style.background = 'rgba(251,191,36,0.08)'
                       }}
                       onMouseOut={(e) => {
                         e.currentTarget.style.background = rowBg
-                        e.currentTarget.style.boxShadow = rowShadow
                       }}
                     >
                       {visibleCols.map((col, i) =>
-                        renderTableCell(col.id, sale, i === visibleCols.length - 1, bId, isProfit, isNew)
+                        renderTableCell(
+                          col.id,
+                          sale,
+                          i === visibleCols.length - 1,
+                          bId,
+                          isProfit,
+                          isClaimedNew,
+                          isRecent,
+                          i === 0
+                        )
                       )}
                     </tr>
                   )

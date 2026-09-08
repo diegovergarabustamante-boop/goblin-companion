@@ -899,6 +899,38 @@ body {
   background: rgba(251, 191, 36, 0.5);
 }
 
+.pnl-sales-table tr.pnl-row-recent td {
+  border-color: #38bdf8;
+}
+
+.pnl-latest-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.pnl-latest-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 120;
+  width: 280px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(15, 10, 5, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.75);
+  color: #e2e8f0;
+  font-size: 0.78em;
+  line-height: 1.45;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.pnl-latest-wrap:hover .pnl-latest-tooltip {
+  display: block;
+}
+
 /* ── Wowhead Tooltip Overrides ───────────────────────────────────────────── */
 
 /* Force tooltip on top of everything — glass panels use backdrop-filter which
