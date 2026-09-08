@@ -65,9 +65,9 @@ Also update the local HTTP status payload:
 
 `package-lock.json` top-level version is **stale** (`0.1.0`) and is **not** used for releases. Do not rely on it.
 
-Versioning in this repo is `0.Y.Z`. Bump **patch** (`0.3.5` → `0.3.6`) for features and fixes, matching recent history. Bump minor only if the user asks.
+Versioning in this repo is `0.Y.Z`. Bump **patch** (`0.3.6` → `0.3.7`) for features and fixes, matching recent history. Bump minor only if the user asks.
 
-Current shipped GitHub release at the time this guide was written: **v0.3.5**. Always read `package.json` and `git tag --sort=-v:refname` before bumping — do not copy an old version from this paragraph.
+Current shipped GitHub release at the time this guide was written: **v0.3.6**. Always read `package.json` and `git tag --sort=-v:refname` before bumping — do not copy an old version from this paragraph.
 
 ---
 
