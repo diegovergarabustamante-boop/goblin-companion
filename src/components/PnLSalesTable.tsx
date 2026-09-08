@@ -193,6 +193,8 @@ const DEFAULT_COLUMNS: PnLColumnDef[] = [
 
 const STORAGE_KEY = 'goblin_pnl_columns_config'
 const CARDS_STORAGE_KEY = 'goblin_pnl_cards_config'
+const SORT_LATEST_KEY = 'goblin_pnl_sort_latest'
+const LAST_SEEN_IDS_KEY = 'goblin_pnl_last_sale_ids'
 
 function mergeSavedConfig<T extends { id: string }>(raw: string | null, defaults: T[]): T[] {
   if (!raw) return defaults
@@ -233,6 +235,45 @@ function loadSavedCards(): PnLCardDef[] {
     return mergeSavedConfig(localStorage.getItem(CARDS_STORAGE_KEY), DEFAULT_CARDS)
   } catch {
     return DEFAULT_CARDS
+  }
+}
+
+function loadSortLatest(): boolean {
+  try {
+    const raw = localStorage.getItem(SORT_LATEST_KEY)
+    if (raw === null) return true
+    return raw === 'true'
+  } catch {
+    return true
+  }
+}
+
+function saleFingerprint(s: RecentSaleItemDto): string {
+  return [s.itemId, s.sellTimeTs ?? s.soldAt, s.buyer ?? '', s.quantity, s.sellPriceCopper, s.realm ?? ''].join('|')
+}
+
+function saleTime(s: RecentSaleItemDto): number {
+  if (s.sellTimeTs && s.sellTimeTs > 0) return s.sellTimeTs
+  const parsed = Date.parse(s.soldAt)
+  return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000)
+}
+
+function loadLastSeenFingerprints(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LAST_SEEN_IDS_KEY)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw) as string[]
+    return Array.isArray(parsed) ? new Set(parsed) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveLastSeenFingerprints(ids: Set<string>): void {
+  try {
+    localStorage.setItem(LAST_SEEN_IDS_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Ignore storage write errors
   }
 }
 
@@ -435,6 +476,8 @@ export function PnLSalesTable() {
   // Card customization state
   const [cards, setCards] = useState<PnLCardDef[]>(loadSavedCards)
   const [showCardMenu, setShowCardMenu] = useState(false)
+  const [sortLatest, setSortLatest] = useState(loadSortLatest)
+  const [newSaleKeys, setNewSaleKeys] = useState<Set<string>>(new Set())
 
   // Save column config on change
   const updateColumns = (newCols: PnLColumnDef[]) => {
@@ -494,6 +537,16 @@ export function PnLSalesTable() {
     updateCards(DEFAULT_CARDS)
   }
 
+  const toggleSortLatest = () => {
+    const next = !sortLatest
+    setSortLatest(next)
+    try {
+      localStorage.setItem(SORT_LATEST_KEY, String(next))
+    } catch {
+      // Ignore storage write errors
+    }
+  }
+
   const loadSales = async () => {
     setLoading(true)
     setError(null)
@@ -501,7 +554,19 @@ export function PnLSalesTable() {
       if (window.goblin && typeof window.goblin.getRecentSales === 'function') {
         const res = await window.goblin.getRecentSales(100)
         if (res.ok && res.sales) {
-          setSales(res.sales)
+          const incoming = res.sales
+          const incomingKeys = new Set(incoming.map(saleFingerprint))
+          const previousKeys = loadLastSeenFingerprints()
+          if (previousKeys.size > 0) {
+            const newly = new Set(
+              incoming.map(saleFingerprint).filter((key) => !previousKeys.has(key))
+            )
+            setNewSaleKeys(newly)
+          } else {
+            setNewSaleKeys(new Set())
+          }
+          saveLastSeenFingerprints(incomingKeys)
+          setSales(incoming)
           setTotalRev(res.totalRevenueCopper ?? 0)
           setTotalCost(res.totalCostCopper ?? 0)
           setTotalProfit(res.totalProfitCopper ?? 0)
@@ -536,6 +601,15 @@ export function PnLSalesTable() {
     const matchesRealm = s.realm ? s.realm.toLowerCase().includes(q) : false
     return matchesName || matchesBuyer || matchesRealm
   })
+
+  const displayedSales = sortLatest
+    ? [...filteredSales].sort((a, b) => {
+        const aNew = newSaleKeys.has(saleFingerprint(a)) ? 1 : 0
+        const bNew = newSaleKeys.has(saleFingerprint(b)) ? 1 : 0
+        if (aNew !== bNew) return bNew - aNew
+        return saleTime(b) - saleTime(a)
+      })
+    : filteredSales
 
   const losingSales = sales.filter((s) => s.netProfitCopper < 0)
   const goldLostCopper = losingSales.reduce((sum, s) => sum + s.netProfitCopper, 0)
@@ -574,13 +648,33 @@ export function PnLSalesTable() {
     sale: RecentSaleItemDto,
     isLast: boolean,
     bId: number | null,
-    isProfit: boolean
+    isProfit: boolean,
+    isNew: boolean
   ) => {
     switch (colId) {
       case 'item':
         return (
           <td key={colId} style={{ ...tdStyle('center', isLast), overflow: 'visible' }}>
-            <WowItemLinkCell blizzardId={bId} itemName={sale.itemName} quantity={sale.quantity} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0 }}>
+              {isNew ? (
+                <span
+                  title="Appeared since last refresh"
+                  style={{
+                    flexShrink: 0,
+                    fontSize: '0.62em',
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                    color: '#1c1917',
+                    background: '#fbbf24',
+                    borderRadius: 4,
+                    padding: '2px 5px'
+                  }}
+                >
+                  NEW
+                </span>
+              ) : null}
+              <WowItemLinkCell blizzardId={bId} itemName={sale.itemName} quantity={sale.quantity} />
+            </div>
           </td>
         )
       case 'buyer':
@@ -852,7 +946,22 @@ export function PnLSalesTable() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>Showing {filteredSales.length} of {sales.length} recent sales</span>
+            <span style={{ fontSize: '0.8em', color: '#94a3b8' }}>Showing {displayedSales.length} of {sales.length} recent sales</span>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={toggleSortLatest}
+              title="When enabled, newly claimed sales appear first, then the rest by sell date"
+              style={{
+                padding: '8px 12px',
+                fontSize: '0.85em',
+                borderColor: sortLatest ? '#fbbf24' : undefined,
+                background: sortLatest ? 'rgba(251,191,36,0.15)' : undefined,
+                color: sortLatest ? '#fbbf24' : undefined
+              }}
+            >
+              {sortLatest ? '● Latest first' : '○ Latest first'}
+            </button>
             <button type="button" className="btn btn--secondary" onClick={() => void loadSales()} disabled={loading} style={{ padding: '8px 14px', fontSize: '0.85em' }}>
               <img src="./images/goblin_assets/sync.png" alt="" style={{ width: 16, height: 16, animation: loading ? 'spin 1s linear infinite' : 'none' }} />
               <span>Refresh</span>
@@ -893,20 +1002,24 @@ export function PnLSalesTable() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSales.map((sale, index) => {
+                {displayedSales.map((sale, index) => {
                   const isProfit = sale.netProfitCopper >= 0
+                  const isNew = sortLatest && newSaleKeys.has(saleFingerprint(sale))
                   const bId = sale.blizzardId ||
                     (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
+                  const rowBg = isNew
+                    ? 'rgba(251,191,36,0.14)'
+                    : index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
 
                   return (
                     <tr
                       key={sale.id || index}
-                      style={{ background: index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)', transition: 'background 0.15s ease' }}
+                      style={{ background: rowBg, transition: 'background 0.15s ease' }}
                       onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.08)' }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)' }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = rowBg }}
                     >
                       {visibleCols.map((col, i) =>
-                        renderTableCell(col.id, sale, i === visibleCols.length - 1, bId, isProfit)
+                        renderTableCell(col.id, sale, i === visibleCols.length - 1, bId, isProfit, isNew)
                       )}
                     </tr>
                   )
