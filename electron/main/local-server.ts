@@ -39,7 +39,7 @@ function statusPayload(): Record<string, unknown> {
   return {
     ok: true,
     companion: true,
-    version: '0.3.3',
+    version: '0.3.4',
     tray_status: snap.trayStatus,
     auto_sync_enabled: snap.autoSyncEnabled,
     django_reachable: snap.djangoReachable,

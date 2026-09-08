@@ -315,6 +315,9 @@ export function PnLSalesTable() {
     return matchesName || matchesBuyer || matchesRealm
   })
 
+  const losingSales = sales.filter((s) => s.netProfitCopper < 0)
+  const goldLostCopper = losingSales.reduce((sum, s) => sum + s.netProfitCopper, 0)
+
   // Visible columns & scaling widths
   const visibleCols = columns.filter((c) => c.visible)
   const totalWeight = visibleCols.reduce((sum, c) => sum + c.widthPercent, 0) || 1
@@ -461,7 +464,7 @@ export function PnLSalesTable() {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(6,78,59,0.2))', border: '1px solid rgba(16,185,129,0.3)' }}>
           <img src="./images/goblin_assets/coin_badge_1.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <div>
@@ -481,6 +484,16 @@ export function PnLSalesTable() {
           <div>
             <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Net Profit / Loss</div>
             <div style={{ fontSize: '1.05em', marginTop: 2, color: totalProfit >= 0 ? '#4ade80' : '#f87171' }}><CoinBadge copper={totalProfit} /></div>
+          </div>
+        </div>
+        <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(153,27,27,0.25))', border: '1px solid rgba(248,113,113,0.4)' }}>
+          <img src="./images/goblin_assets/clear.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <div>
+            <div style={{ fontSize: '0.75em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Gold Lost</div>
+            <div style={{ fontSize: '1.05em', marginTop: 2, color: '#f87171' }}><CoinBadge copper={Math.abs(goldLostCopper)} /></div>
+            <div style={{ fontSize: '0.72em', color: '#94a3b8', marginTop: 2 }}>
+              {losingSales.length} losing {losingSales.length === 1 ? 'sale' : 'sales'} · last {sales.length || 100}
+            </div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(135deg,rgba(168,85,247,0.12),rgba(88,28,135,0.2))', border: '1px solid rgba(168,85,247,0.3)' }}>
