@@ -664,8 +664,8 @@ export function PnLSalesTable() {
                     fontSize: '0.62em',
                     fontWeight: 800,
                     letterSpacing: '0.06em',
-                    color: '#1c1917',
-                    background: '#fbbf24',
+                    color: '#082f49',
+                    background: '#38bdf8',
                     borderRadius: 4,
                     padding: '2px 5px'
                   }}
@@ -1008,15 +1008,28 @@ export function PnLSalesTable() {
                   const bId = sale.blizzardId ||
                     (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
                   const rowBg = isNew
-                    ? 'rgba(251,191,36,0.14)'
+                    ? 'rgba(56,189,248,0.14)'
                     : index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
+                  const rowShadow = isNew
+                    ? 'inset 0 0 0 1.5px rgba(56,189,248,0.9), inset 4px 0 0 #38bdf8'
+                    : 'none'
 
                   return (
                     <tr
                       key={sale.id || index}
-                      style={{ background: rowBg, transition: 'background 0.15s ease' }}
-                      onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.08)' }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = rowBg }}
+                      title={isNew ? 'Newly claimed since last refresh' : undefined}
+                      style={{
+                        background: rowBg,
+                        boxShadow: rowShadow,
+                        transition: 'background 0.15s ease, box-shadow 0.15s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = isNew ? 'rgba(56,189,248,0.22)' : 'rgba(251,191,36,0.08)'
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = rowBg
+                        e.currentTarget.style.boxShadow = rowShadow
+                      }}
                     >
                       {visibleCols.map((col, i) =>
                         renderTableCell(col.id, sale, i === visibleCols.length - 1, bId, isProfit, isNew)
