@@ -439,6 +439,8 @@ export interface RecentSaleItemDto {
   netProfitCopper: number
   buyer?: string
   realm?: string
+  /** True when this row is from the latest mailbox claim (usually the last realm checked). */
+  isNewlyClaimed?: boolean
 }
 
 export interface RecentSalesResponseDto {

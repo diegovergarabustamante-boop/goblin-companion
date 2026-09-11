@@ -194,7 +194,6 @@ const DEFAULT_COLUMNS: PnLColumnDef[] = [
 const STORAGE_KEY = 'goblin_pnl_columns_config'
 const CARDS_STORAGE_KEY = 'goblin_pnl_cards_config'
 const SORT_LATEST_KEY = 'goblin_pnl_sort_latest'
-const LAST_SEEN_IDS_KEY = 'goblin_pnl_last_sale_ids'
 
 function mergeSavedConfig<T extends { id: string }>(raw: string | null, defaults: T[]): T[] {
   if (!raw) return defaults
@@ -248,36 +247,10 @@ function loadSortLatest(): boolean {
   }
 }
 
-function saleFingerprint(s: RecentSaleItemDto): string {
-  return [s.itemId, s.sellTimeTs ?? s.soldAt, s.buyer ?? '', s.quantity, s.sellPriceCopper, s.realm ?? ''].join('|')
-}
-
 function saleTime(s: RecentSaleItemDto): number {
   if (s.sellTimeTs && s.sellTimeTs > 0) return s.sellTimeTs
   const parsed = Date.parse(s.soldAt)
   return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000)
-}
-
-/** Sales within this window of the newest sell time count as the latest claimed batch. */
-const NEWEST_CLUSTER_SECONDS = 45 * 60
-
-function loadLastSeenFingerprints(): Set<string> {
-  try {
-    const raw = localStorage.getItem(LAST_SEEN_IDS_KEY)
-    if (!raw) return new Set()
-    const parsed = JSON.parse(raw) as string[]
-    return Array.isArray(parsed) ? new Set(parsed) : new Set()
-  } catch {
-    return new Set()
-  }
-}
-
-function saveLastSeenFingerprints(ids: Set<string>): void {
-  try {
-    localStorage.setItem(LAST_SEEN_IDS_KEY, JSON.stringify([...ids]))
-  } catch {
-    // Ignore storage write errors
-  }
 }
 
 function SettingsPopover<T extends { id: string; label: string; visible: boolean }>({
@@ -480,7 +453,6 @@ export function PnLSalesTable() {
   const [cards, setCards] = useState<PnLCardDef[]>(loadSavedCards)
   const [showCardMenu, setShowCardMenu] = useState(false)
   const [sortLatest, setSortLatest] = useState(loadSortLatest)
-  const [newSaleKeys, setNewSaleKeys] = useState<Set<string>>(new Set())
 
   // Save column config on change
   const updateColumns = (newCols: PnLColumnDef[]) => {
@@ -557,19 +529,7 @@ export function PnLSalesTable() {
       if (window.goblin && typeof window.goblin.getRecentSales === 'function') {
         const res = await window.goblin.getRecentSales(100)
         if (res.ok && res.sales) {
-          const incoming = res.sales
-          const incomingKeys = new Set(incoming.map(saleFingerprint))
-          const previousKeys = loadLastSeenFingerprints()
-          if (previousKeys.size > 0) {
-            const newly = new Set(
-              incoming.map(saleFingerprint).filter((key) => !previousKeys.has(key))
-            )
-            setNewSaleKeys(newly)
-          } else {
-            setNewSaleKeys(new Set())
-          }
-          saveLastSeenFingerprints(incomingKeys)
-          setSales(incoming)
+          setSales(res.sales)
           setTotalRev(res.totalRevenueCopper ?? 0)
           setTotalCost(res.totalCostCopper ?? 0)
           setTotalProfit(res.totalProfitCopper ?? 0)
@@ -605,13 +565,11 @@ export function PnLSalesTable() {
     return matchesName || matchesBuyer || matchesRealm
   })
 
-  const newestSellTs = filteredSales.reduce((max, sale) => Math.max(max, saleTime(sale)), 0)
-
   const displayedSales = [...filteredSales].sort((a, b) => {
     const byDate = saleTime(b) - saleTime(a)
-    if (!sortLatest) return -byDate
-    const aNew = newSaleKeys.has(saleFingerprint(a)) ? 1 : 0
-    const bNew = newSaleKeys.has(saleFingerprint(b)) ? 1 : 0
+    if (!sortLatest) return byDate
+    const aNew = a.isNewlyClaimed ? 1 : 0
+    const bNew = b.isNewlyClaimed ? 1 : 0
     if (aNew !== bNew) return bNew - aNew
     return byDate
   })
@@ -640,35 +598,35 @@ export function PnLSalesTable() {
     textOverflow: 'ellipsis'
   })
 
-  const tdStyle = (
-    textAlign: 'left' | 'center' | 'right',
-    isLast = false,
-    isRecent = false,
-    isFirst = false
-  ): React.CSSProperties => {
+  const tdClass = (
+    isLast: boolean,
+    isFirst: boolean,
+    isRecent: boolean,
+    extra?: string
+  ): string => {
+    const classes = ['pnl-cell']
     if (isRecent) {
-      return {
-        padding: '10px 8px',
-        textAlign,
-        borderTop: '2px solid #38bdf8',
-        borderBottom: '2px solid #38bdf8',
-        borderLeft: isFirst ? '2px solid #38bdf8' : '1px solid #38bdf8',
-        borderRight: isLast ? '2px solid #38bdf8' : '1px solid #38bdf8',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      }
+      classes.push('pnl-cell--recent')
+      if (isFirst) classes.push('pnl-cell--recent-first')
+      if (isLast) classes.push('pnl-cell--recent-last')
     }
-    return {
-      padding: '10px 8px',
-      textAlign,
-      borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.08)',
-      borderBottom: '1px solid rgba(255,255,255,0.04)',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
+    if (extra) classes.push(extra)
+    return classes.join(' ')
   }
+
+  const tdStyle = (isLast = false, isRecent = false): React.CSSProperties => ({
+    padding: '10px 8px',
+    textAlign: 'center',
+    ...(isRecent
+      ? {}
+      : {
+          borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.08)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)'
+        }),
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  })
 
   // Render individual cell by column ID
   const renderTableCell = (
@@ -681,15 +639,16 @@ export function PnLSalesTable() {
     isRecent: boolean,
     isFirst: boolean
   ) => {
-    const cell = tdStyle('center', isLast, isRecent, isFirst)
+    const cell = tdStyle(isLast, isRecent)
+    const cellClass = tdClass(isLast, isFirst, isRecent)
     switch (colId) {
       case 'item':
         return (
-          <td key={colId} style={{ ...cell, overflow: 'visible' }}>
+          <td key={colId} className={cellClass} style={{ ...cell, overflow: 'visible' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minWidth: 0 }}>
               {isNew ? (
                 <span
-                  title="Appeared since last refresh"
+                  title="Last mailbox claim (last realm checked)"
                   style={{
                     flexShrink: 0,
                     fontSize: '0.62em',
@@ -712,6 +671,7 @@ export function PnLSalesTable() {
         return (
           <td
             key={colId}
+            className={cellClass}
             style={{
               ...cell,
               color: sale.buyer ? stringToColor(sale.buyer) : '#64748b',
@@ -726,6 +686,7 @@ export function PnLSalesTable() {
         return (
           <td
             key={colId}
+            className={cellClass}
             style={{
               ...cell,
               color: sale.realm ? stringToColor(sale.realm) : '#64748b',
@@ -738,19 +699,19 @@ export function PnLSalesTable() {
         )
       case 'buyDate':
         return (
-          <td key={colId} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
+          <td key={colId} className={cellClass} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
             {formatLocalDateTime(sale.buyTimeTs, sale.boughtAt)}
           </td>
         )
       case 'sellDate':
         return (
-          <td key={colId} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
+          <td key={colId} className={cellClass} style={{ ...cell, color: '#94a3b8', fontSize: '0.85em' }}>
             {formatLocalDateTime(sale.sellTimeTs, sale.soldAt)}
           </td>
         )
       case 'posts':
         return (
-          <td key={colId} style={cell}>
+          <td key={colId} className={cellClass} style={cell}>
             <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: '0.82em', fontWeight: 700, background: sale.postsBeforeSale > 5 ? 'rgba(245,158,11,0.15)' : 'rgba(96,165,250,0.15)', color: sale.postsBeforeSale > 5 ? '#fbbf24' : '#60a5fa', border: sale.postsBeforeSale > 5 ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(96,165,250,0.3)' }}>
               {sale.postsBeforeSale} {sale.postsBeforeSale === 1 ? 'post' : 'posts'}
             </span>
@@ -758,13 +719,13 @@ export function PnLSalesTable() {
         )
       case 'buyPrice':
         return (
-          <td key={colId} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
+          <td key={colId} className={cellClass} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
             <CoinBadge copper={sale.buyPriceCopper} fontSize="1em" />
           </td>
         )
       case 'sellPrice':
         return (
-          <td key={colId} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
+          <td key={colId} className={cellClass} style={{ ...cell, overflow: 'visible', whiteSpace: 'nowrap' }}>
             <CoinBadge copper={sale.sellPriceCopper} fontSize="1em" />
           </td>
         )
@@ -772,13 +733,12 @@ export function PnLSalesTable() {
         return (
           <td
             key={colId}
+            className={tdClass(isLast, isFirst, isRecent, isProfit ? 'pnl-cell-net pnl-cell-net--gain' : 'pnl-cell-net pnl-cell-net--loss')}
             style={{
               ...cell,
               overflow: 'visible',
               whiteSpace: 'nowrap',
-              fontWeight: 700,
-              color: isProfit ? '#4ade80' : '#f87171',
-              background: isProfit ? 'rgba(74,222,128,0.05)' : 'rgba(248,113,113,0.05)'
+              fontWeight: 700
             }}
           >
             <CoinBadge copper={sale.netProfitCopper} fontSize="1.04em" />
@@ -994,9 +954,8 @@ export function PnLSalesTable() {
                 {sortLatest ? '● Latest first' : '○ Latest first'}
               </button>
               <div className="pnl-latest-tooltip" role="tooltip">
-                Sorts by sell date: newest at the top, oldest at the bottom when turned off.
-                Cyan borders mark only the most recently sold batch (for example the last
-                auctions you just claimed from the mailbox), not every sale from the same day.
+                Pins the last mailbox claim (usually the last realm you checked) at the top
+                with a cyan highlight. Turn it off to sort every sale by sell date, newest first.
               </div>
             </div>
             <button type="button" className="btn btn--secondary" onClick={() => void loadSales()} disabled={loading} style={{ padding: '8px 14px', fontSize: '0.85em' }}>
@@ -1041,25 +1000,19 @@ export function PnLSalesTable() {
               <tbody>
                 {displayedSales.map((sale, index) => {
                   const isProfit = sale.netProfitCopper >= 0
-                  const isClaimedNew = sortLatest && newSaleKeys.has(saleFingerprint(sale))
-                  const isNewestBatch = sortLatest && newestSellTs > 0 && saleTime(sale) > 0 && (newestSellTs - saleTime(sale)) <= NEWEST_CLUSTER_SECONDS
-                  const isRecent = isClaimedNew || isNewestBatch
+                  const isClaimedNew = sortLatest && Boolean(sale.isNewlyClaimed)
                   const bId = sale.blizzardId ||
                     (sale.itemId ? parseInt(sale.itemId.replace(/\D/g, ''), 10) : null)
-                  const rowBg = index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
+                  const rowBg = isClaimedNew
+                    ? undefined
+                    : index % 2 === 0 ? 'rgba(15,10,5,0.45)' : 'rgba(25,18,9,0.65)'
 
                   return (
                     <tr
                       key={sale.id || index}
-                      className={isRecent ? 'pnl-row-recent' : undefined}
-                      title={isClaimedNew ? 'Newly claimed since last refresh' : isNewestBatch ? 'Most recently sold' : undefined}
+                      className={isClaimedNew ? 'pnl-row-recent' : undefined}
+                      title={isClaimedNew ? 'Last mailbox claim (last realm checked)' : undefined}
                       style={{ background: rowBg, transition: 'background 0.15s ease' }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(251,191,36,0.08)'
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = rowBg
-                      }}
                     >
                       {visibleCols.map((col, i) =>
                         renderTableCell(
@@ -1069,7 +1022,7 @@ export function PnLSalesTable() {
                           bId,
                           isProfit,
                           isClaimedNew,
-                          isRecent,
+                          isClaimedNew,
                           i === 0
                         )
                       )}

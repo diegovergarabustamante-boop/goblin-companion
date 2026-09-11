@@ -22,6 +22,7 @@ import {
   restoreBackup
 } from './backup-manager'
 import { startConnectionMonitor, stopConnectionMonitor } from './connection-monitor'
+import { attachClaimedBatch, primeClaimedSalesBaseline, refreshClaimedSalesBatch } from './claimed-sales'
 import { executeTsmWrite, fetchItemTooltip, fetchRecentSales, loginDjango, pingDjango, previewTsmWrite } from './http-client'
 import { loadDotEnv } from './load-env'
 import { startLocalServer, stopLocalServer } from './local-server'
@@ -155,6 +156,9 @@ function broadcastStatus(): void {
 
 function wireWatcher(): void {
   restartWatcher((event) => {
+    if (event.kind === 'accounting') {
+      refreshClaimedSalesBatch()
+    }
     void syncFile(event.kind, event.filePath, 'auto')
   })
 }
@@ -284,7 +288,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannel.PreviewTsmWrite, () => runTsmWritePreview())
   ipcMain.handle(IpcChannel.ConfirmTsmWrite, (_event, assignments) => runTsmWriteConfirm(assignments))
-  ipcMain.handle(IpcChannel.GetRecentSales, (_event, limit?: number) => fetchRecentSales(getSettings(), limit))
+  ipcMain.handle(IpcChannel.GetRecentSales, async (_event, limit?: number) => {
+    const res = await fetchRecentSales(getSettings(), limit)
+    return attachClaimedBatch(res)
+  })
   ipcMain.handle(IpcChannel.GetItemTooltip, (_event, blizzardId: number) => fetchItemTooltip(blizzardId))
   ipcMain.handle(IpcChannel.GetUpdateStatus, () => updateManager.getStatus())
   ipcMain.handle(IpcChannel.CheckUpdate, () => updateManager.checkForUpdates())
@@ -318,6 +325,7 @@ if (!gotLock) {
     })
 
     wireWatcher()
+    primeClaimedSalesBaseline()
     startLocalServer()
     startConnectionMonitor()
     applyAutostart(getSettings().startWithWindows)
