@@ -1,4 +1,5 @@
 import { appendActivity } from './activity-log'
+import { checkAndSyncBuyList } from './addon-sync'
 import { checkDjangoConnection } from './sync-manager'
 import { checkAndExecutePendingWrite } from './tsm-write-executor'
 
@@ -25,6 +26,8 @@ export function startConnectionMonitor(intervalMs = DEFAULT_INTERVAL_MS): void {
       await checkDjangoConnection()
       // Polling de escrituras pendientes (no bloquea el connection check)
       void checkAndExecutePendingWrite()
+      // Buy list por reino -> Data.lua del addon in-game
+      void checkAndSyncBuyList()
     } finally {
       running = false
     }

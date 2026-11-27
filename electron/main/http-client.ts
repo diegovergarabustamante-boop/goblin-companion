@@ -423,6 +423,73 @@ export async function completePendingWrite(
   }
 }
 
+export interface BuyListFetchResult {
+  ok: boolean
+  /** true si Django no tiene lista todavía */
+  empty?: boolean
+  unchanged?: boolean
+  hash?: string
+  payload?: import('./addon-lua').BuyListPayload
+  error?: string
+}
+
+/** Descarga la buy list por reino (si `sinceHash` coincide, Django responde unchanged). */
+export async function fetchBuyList(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  sinceHash?: string
+): Promise<BuyListFetchResult> {
+  let url: URL
+  try {
+    url = new URL('/api/companion/buy-list/', settings.djangoUrl)
+  } catch {
+    return { ok: false, error: `Django URL inválida: "${settings.djangoUrl}"` }
+  }
+  if (sinceHash) url.searchParams.set('since', sinceHash)
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT_MS * 3)
+  try {
+    const response = await fetch(url.toString(), {
+      headers: companionHeaders(settings.companionToken),
+      signal: controller.signal
+    })
+    const body = (await response.json().catch(() => null)) as {
+      success?: boolean
+      has_list?: boolean
+      unchanged?: boolean
+      hash?: string
+      payload?: import('./addon-lua').BuyListPayload
+      error?: string
+    } | null
+    if (!response.ok || !body?.success) {
+      return { ok: false, error: body?.error ?? `HTTP ${response.status}` }
+    }
+    if (!body.has_list) return { ok: true, empty: true }
+    if (body.unchanged) return { ok: true, unchanged: true, hash: body.hash }
+    return { ok: true, hash: body.hash, payload: body.payload }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export async function ackBuyList(
+  settings: Pick<CompanionSettings, 'djangoUrl' | 'companionToken'>,
+  hash: string
+): Promise<void> {
+  try {
+    const url = new URL('/api/companion/buy-list/ack/', settings.djangoUrl).toString()
+    await fetch(url, {
+      method: 'POST',
+      headers: companionHeaders(settings.companionToken),
+      body: JSON.stringify({ hash })
+    })
+  } catch {
+    // best-effort
+  }
+}
+
 export interface RecentSaleItemDto {
   id: string
   itemId: string

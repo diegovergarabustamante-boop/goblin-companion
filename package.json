@@ -1,6 +1,6 @@
 {
   "name": "goblin-companion",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Companion de escritorio para Auction-house-Profit: sincroniza SavedVariables de WoW con Django sin clicks manuales.",
   "type": "module",
   "main": "./out/main/index.js",
@@ -13,6 +13,7 @@
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "icon": "node scripts/generate-icon.mjs",
+    "test:addon-lua": "node scripts/test-addon-lua.mjs",
     "dist": "npm run icon && npm run typecheck && npm run build && electron-builder --win",
     "dist:dir": "npm run icon && npm run build && electron-builder --win --dir"
   },

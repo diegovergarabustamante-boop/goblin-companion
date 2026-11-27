@@ -34,6 +34,21 @@ Goblin Companion connects directly with key modules in the Auction House Profit 
 
 ---
 
+## 🛒 In-game Addon (per-realm buy list)
+
+Companion also feeds the **GoblinCompanion** WoW addon (separate repo: `GoblinCompanionAddon`). Every ~15 s it asks Django for the buy list published by the Arbitrage page (`GET /api/companion/buy-list/?since=<hash>`) and, when it changed, writes a generated addon next to the main one:
+
+```
+<WoW>\_retail_\Interface\AddOns\GoblinCompanion_Data\{GoblinCompanion_Data.toc, Data.lua}
+```
+
+- The AddOns folder is derived from the SavedVariables path (or set it in **Settings → In-game Addon**).
+- `GoblinCompanion_Data` is fully generated and overwritten; the main addon is never touched.
+- WoW reads the files at login or `/reload`.
+- `npm run test:addon-lua` checks the Lua generator (escaping, realm path derivation).
+
+---
+
 ## 💻 Tech Stack
 
 * **Core**: Electron 43, Node.js 22

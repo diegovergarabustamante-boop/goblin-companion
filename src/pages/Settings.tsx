@@ -265,6 +265,41 @@ function Settings({ onLogout }: SettingsProps): JSX.Element {
         </div>
       </section>
 
+      {/* SECCIÓN 2b: ADDON IN-GAME (BUY LIST POR REINO) */}
+      <section className="glass-panel">
+        <h2>
+          <img src="./images/goblin_assets/cart.png" alt="" />
+          <span>In-game Addon (Buy List)</span>
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(12, 8, 3, 0.6)', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+          <div>
+            <span style={{ color: '#f3f4f6', fontWeight: 700, fontSize: '0.92em', display: 'block', fontFamily: 'var(--font-header)' }}>
+              Write per-realm buy list to the addon
+            </span>
+            <span style={{ color: '#94a3b8', fontSize: '0.82em' }}>
+              Creates <code>GoblinCompanion_Data</code> in your AddOns folder. Use <code>/reload</code> in WoW to see changes.
+            </span>
+          </div>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={settings.addonSyncEnabled}
+              onChange={(event) => patch({ addonSyncEnabled: event.target.checked })}
+            />
+            <span className="switch__track" />
+          </label>
+        </div>
+        <label className="field" style={{ marginTop: '10px' }}>
+          <span>AddOns Folder (optional — derived from the SavedVariables path when empty)</span>
+          <input
+            type="text"
+            value={settings.wowAddonsPath}
+            onChange={(event) => patch({ wowAddonsPath: event.target.value })}
+            placeholder="D:\World of Warcraft\_retail_\Interface\AddOns"
+          />
+        </label>
+      </section>
+
       {/* SECCIÓN 3: NOTIFICACIONES, LOGS Y ARRANQUE */}
       <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <h2>

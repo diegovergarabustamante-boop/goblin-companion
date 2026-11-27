@@ -13,6 +13,7 @@ import {
   onActivity,
   openActivityLogFolder
 } from './activity-log'
+import { checkAndSyncBuyList, getAddonStatus, onAddonStatusChange } from './addon-sync'
 import { isQuittingApp, markQuitting } from './app-state'
 import {
   createRotatingBackup,
@@ -210,6 +211,14 @@ function registerIpcHandlers(): void {
       prev.wowSavedVariablesPath !== next.wowSavedVariablesPath
     if (watcherRelevant) wireWatcher()
 
+    if (
+      prev.addonSyncEnabled !== next.addonSyncEnabled ||
+      prev.wowAddonsPath !== next.wowAddonsPath ||
+      prev.wowSavedVariablesPath !== next.wowSavedVariablesPath
+    ) {
+      void checkAndSyncBuyList()
+    }
+
     if (prev.localServerPort !== next.localServerPort) {
       startLocalServer(next.localServerPort)
     }
@@ -223,6 +232,8 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IpcChannel.GetStatus, () => getSyncSnapshot())
+  ipcMain.handle(IpcChannel.GetAddonStatus, () => getAddonStatus())
+  ipcMain.handle(IpcChannel.ResyncAddon, () => checkAndSyncBuyList({ force: true }))
 
   ipcMain.on(IpcChannel.WindowMinimize, () => mainWindow?.minimize())
   ipcMain.on(IpcChannel.WindowClose, () => mainWindow?.hide())
@@ -311,6 +322,9 @@ if (!gotLock) {
     mainWindow = createMainWindow()
 
     onSyncStatusChange(() => broadcastStatus())
+    onAddonStatusChange((addonStatus) => {
+      mainWindow?.webContents.send(IpcChannel.AddonStatusChanged, addonStatus)
+    })
     onActivity((event) => {
       mainWindow?.webContents.send(IpcChannel.ActivityAppended, event)
     })

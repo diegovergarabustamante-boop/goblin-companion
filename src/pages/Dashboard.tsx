@@ -1,6 +1,6 @@
-import { useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 
-import type { CompanionStatusSnapshot } from '../../shared/settings'
+import type { AddonSyncStatus, CompanionStatusSnapshot } from '../../shared/settings'
 import { PnLSalesTable } from '../components/PnLSalesTable'
 
 interface DashboardProps {
@@ -28,6 +28,39 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<'success' | 'error' | null>(null)
+
+  const [addon, setAddon] = useState<AddonSyncStatus | null>(null)
+  const [addonBusy, setAddonBusy] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void window.goblin.getAddonStatus().then((s) => {
+      if (!cancelled) setAddon(s)
+    })
+    const unsub = window.goblin.onAddonStatusChange((s) => setAddon(s))
+    return () => {
+      cancelled = true
+      unsub()
+    }
+  }, [])
+
+  async function resyncAddon(): Promise<void> {
+    setAddonBusy(true)
+    await window.goblin.resyncAddon()
+    setAddon(await window.goblin.getAddonStatus())
+    setAddonBusy(false)
+  }
+
+  const addonLabel = !addon?.enabled
+    ? 'Disabled'
+    : addon.lastError
+      ? 'Error'
+      : !addon.addonsPath
+        ? 'No AddOns folder'
+        : addon.lastWriteAt || addon.hash
+          ? 'In sync'
+          : 'Waiting for list'
+  const addonColor = !addon?.enabled ? '#94a3b8' : addon.lastError || !addon.addonsPath ? '#f87171' : '#4ade80'
 
   async function forceSync(): Promise<void> {
     setBusy('sync')
@@ -113,6 +146,31 @@ function Dashboard({ status }: DashboardProps): JSX.Element {
                 {getLatestSyncTime(status?.lastInventorySyncAt, status?.lastAccountingSyncAt)}
               </span>
               <span className="dashboard-card__hint">Latest Inventory & Accounting Sync</span>
+            </div>
+            <div className="dashboard-card">
+              <span className="dashboard-card__label">In-game Addon</span>
+              <span className="dashboard-card__value" style={{ color: addonColor }}>
+                {addonLabel}
+              </span>
+              <span className="dashboard-card__hint">
+                {addon?.lastError
+                  ? addon.lastError
+                  : addon && (addon.items > 0 || addon.realms > 0)
+                    ? `${addon.items} items · ${addon.realms} realms · written ${formatWhen(addon.lastWriteAt)}`
+                    : 'Buy list from Arbitrage'}
+                {addon?.enabled && addon.addonsPath && !addon.mainAddonInstalled
+                  ? ' · GoblinCompanion addon not installed'
+                  : ''}
+              </span>
+              <button
+                type="button"
+                className="btn"
+                style={{ marginTop: '8px' }}
+                disabled={addonBusy || !addon?.enabled}
+                onClick={() => void resyncAddon()}
+              >
+                <span>{addonBusy ? 'Re-syncing…' : 'Re-sync addon'}</span>
+              </button>
             </div>
           </div>
 

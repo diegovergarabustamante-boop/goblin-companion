@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannel, type AppTab, type UpdateStatusInfo } from '../../shared/ipc'
 import type {
   ActivityEvent,
+  AddonSyncStatus,
   CompanionSettings,
   CompanionStatusSnapshot,
   DjangoPingResult
@@ -102,6 +103,17 @@ const goblinApi = {
 
   startUpdateDownload: (): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke(IpcChannel.StartUpdateDownload),
+
+  getAddonStatus: (): Promise<AddonSyncStatus> => ipcRenderer.invoke(IpcChannel.GetAddonStatus),
+
+  resyncAddon: (): Promise<{ ok: boolean; wrote?: boolean; error?: string }> =>
+    ipcRenderer.invoke(IpcChannel.ResyncAddon),
+
+  onAddonStatusChange: (callback: (status: AddonSyncStatus) => void): (() => void) => {
+    const listener = (_event: unknown, status: AddonSyncStatus): void => callback(status)
+    ipcRenderer.on(IpcChannel.AddonStatusChanged, listener)
+    return () => ipcRenderer.removeListener(IpcChannel.AddonStatusChanged, listener)
+  },
 
   minimizeWindow: (): void => ipcRenderer.send(IpcChannel.WindowMinimize),
   closeWindow: (): void => ipcRenderer.send(IpcChannel.WindowClose),

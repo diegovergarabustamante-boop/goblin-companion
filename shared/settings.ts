@@ -11,6 +11,10 @@ export interface CompanionSettings {
   autoSyncEnabled: boolean
   backupCount: number
   wowSavedVariablesPath: string
+  /** Carpeta Interface\AddOns. Vacío = se deriva de wowSavedVariablesPath. */
+  wowAddonsPath: string
+  /** Escribir la buy list por reino al addon in-game (GoblinCompanion_Data). */
+  addonSyncEnabled: boolean
   localServerPort: number
   firstRunCompleted: boolean
   notificationsEnabled: boolean
@@ -27,6 +31,8 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   autoSyncEnabled: false,
   backupCount: 3,
   wowSavedVariablesPath: '',
+  wowAddonsPath: '',
+  addonSyncEnabled: true,
   localServerPort: 8765,
   firstRunCompleted: false,
   notificationsEnabled: true,
@@ -57,6 +63,21 @@ export interface CompanionStatusSnapshot {
     stats?: Record<string, number>
     error?: string
   } | null
+}
+
+/** Estado del sync de la buy list hacia el addon in-game. */
+export interface AddonSyncStatus {
+  enabled: boolean
+  addonsPath: string | null
+  /** El addon principal (repo aparte) existe en AddOns/GoblinCompanion */
+  mainAddonInstalled: boolean
+  lastWriteAt: string | null
+  lastCheckAt: string | null
+  hash: string | null
+  generatedAt: string | null
+  realms: number
+  items: number
+  lastError: string | null
 }
 
 /** Resultado de golpear `GET /api/companion/ping/` (botón "Probar conexión"). */
